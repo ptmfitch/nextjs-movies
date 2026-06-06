@@ -5,8 +5,11 @@ import { getDb } from "@/lib/mongodb";
 export interface SyncMovieIndexesResult {
   collection: string;
   created: string[];
+  dropped: string[];
   expected: string[];
 }
+
+const PRESERVED_INDEX_NAMES = new Set(["_id_"]);
 
 let syncPromise: Promise<SyncMovieIndexesResult> | undefined;
 
@@ -14,24 +17,39 @@ async function runSync(): Promise<SyncMovieIndexesResult> {
   const db = await getDb();
   const collectionName = getMongoCollectionName();
   const collection = db.collection(collectionName);
-  const expected = MOVIE_INDEXES.map((index) => index.options.name);
+  const expectedNames = MOVIE_INDEXES.map((index) => index.options.name);
+  const expected = new Set(expectedNames);
 
-  // Driver v7 returns all index names from createIndexes(), not only new ones.
-  const existing = new Set(
-    (await collection.listIndexes().toArray()).map((index) => index.name),
-  );
-  const missing = expected.filter((name) => !existing.has(name));
+  const existingIndexes = await collection.listIndexes().toArray();
+  const existing = new Set(existingIndexes.map((index) => index.name));
+  const missing = expectedNames.filter((name) => !existing.has(name));
 
   await collection.createIndexes(
     MOVIE_INDEXES.map(({ key, options }) => ({ key, ...options })),
   );
 
-  return { collection: collectionName, created: missing, expected };
+  const dropped: string[] = [];
+  for (const { name } of existingIndexes) {
+    if (expected.has(name) || PRESERVED_INDEX_NAMES.has(name)) {
+      continue;
+    }
+
+    await collection.dropIndex(name);
+    dropped.push(name);
+  }
+
+  return {
+    collection: collectionName,
+    created: missing,
+    dropped,
+    expected: expectedNames,
+  };
 }
 
 /**
- * Ensures movie collection indexes exist. Idempotent: createIndexes() is a
- * no-op for indexes that already match, and concurrent calls share one run.
+ * Reconciles movie collection indexes to the manifest. Idempotent: creates
+ * missing indexes, drops extras not in MOVIE_INDEXES, and concurrent calls
+ * share one run.
  */
 export async function syncMovieIndexes(): Promise<SyncMovieIndexesResult> {
   if (!syncPromise) {

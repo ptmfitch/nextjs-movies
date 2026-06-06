@@ -26,8 +26,8 @@ Official `mongodb` driver (not Mongoose) against Atlas `sample_mflix`.
 ## Indexes
 
 - Definitions live in `src/lib/db-indexes.ts`; sync via `src/lib/sync-indexes.ts`.
-- Applied automatically on server startup in `src/instrumentation.ts` (idempotent `createIndexes()`).
-- Manual sync: `npm run db:sync-indexes`. Safe to rerun — only missing/changed indexes are created.
+- Applied automatically on server startup in `src/instrumentation.ts` (idempotent reconcile).
+- Manual sync: `npm run db:sync-indexes`. Safe to rerun — creates missing indexes and drops extras not in the manifest (`_id_` is preserved).
 - When changing filters or sorts in `movies.ts`, update `MOVIE_INDEXES` to match.
 
 ## Limits
