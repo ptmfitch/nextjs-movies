@@ -1,0 +1,22 @@
+---
+description: How rules and skills divide responsibility in this repo
+alwaysApply: true
+---
+
+# Rules vs Skills
+
+**Rules** (`.cursor/rules/`) — coding conventions auto-attached by file glob. Follow them when editing matching files.
+
+**Skills** (`.cursor/skills/`) — on-demand workflows. Invoke by name when doing that task.
+
+| Task | Use |
+|------|-----|
+| Edit components, lib, app routes | Matching rule (conventions) |
+| Write new tests | `writing-tests` skill + `vitest-unit-testing` rule |
+| Verify UI after changes | `verifying-in-browser` skill |
+| Type-check after edits | `auto-type-checking` skill |
+| Performance audit | `auditing-performance` skill |
+| Open a pull request | `creating-pr` skill |
+| Debug dev server / test crashes | `monitoring-terminal-errors` skill |
+
+Do not duplicate rule content inside skills — reference the rule instead.

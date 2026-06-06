@@ -1,44 +1,36 @@
 ---
-description: Node.js MongoDB patterns for data access and serialization
+description: MongoDB data access and query conventions
 globs: src/lib/**/*.ts, src/types/**/*.ts
 alwaysApply: false
 ---
 
 # Node.js + MongoDB
 
-This project uses the official `mongodb` driver (not Mongoose) against the Atlas `sample_mflix` database.
+Official `mongodb` driver (not Mongoose) against Atlas `sample_mflix`.
 
-## Connection pattern
+## Connection
 
-- Reuse the cached client in `src/lib/mongodb.ts` via `global._mongoClientPromise`.
-- Read `MONGODB_URI` and database/collection names from `src/lib/env.ts` — never hardcode credentials.
-- Export `getDb()` for collection access; do not create a new `MongoClient` per request.
+- Reuse cached client in `src/lib/mongodb.ts` via `global._mongoClientPromise`.
+- Read URI and names from `src/lib/env.ts` — never hardcode credentials.
+- Export `getDb()`; do not create a new `MongoClient` per request.
 
-## Query modules
+## Queries
 
-- Keep query logic in `src/lib/movies.ts` (or similar lib modules), not in React components.
-- Type collections with document interfaces from `src/types/movie.ts`.
-- Serialize MongoDB documents before passing to UI: convert `ObjectId` to string, normalize optional fields, and apply helpers like `normalizeYear`.
+- Keep query logic in `src/lib/` (e.g. `movies.ts`), not in components.
+- Type collections with `src/types/movie.ts` interfaces.
+- Serialize before UI: `ObjectId` → string, normalize optional fields (`normalizeYear`).
+- Escape user input in `$regex` via `escapeRegex` (`src/lib/regex.ts`).
+- Blank search queries return safe defaults — do not throw.
+- Use typed `Filter<Document>` from `mongodb`.
 
-## Query safety
+## Limits
 
-- Escape user input used in `$regex` filters (`escapeRegex` in `src/lib/regex.ts`).
-- Return empty results or safe defaults for blank search queries instead of throwing.
-- Use typed `Filter<Document>` from `mongodb` for query builders.
+- Cap list/search results (default `.limit(24)`).
+- Use `.sort()` and projection; avoid unbounded result sets.
+- Prefer `title`, `year`, `imdb.rating` for filters/sorts.
+- This app does not create indexes; regex title search may be slow at scale.
 
-## Error handling
+## Errors
 
-- Catch connection and query errors at the page or caller boundary.
-- Surface `Error.message` to the UI when appropriate; log details server-side only.
-- Do not leak connection strings or raw driver errors to the client.
-
-## Performance
-
-- Use `.limit()`, `.sort()`, and projection when listing or searching movies.
-- Prefer indexed fields (`title`, `year`, `imdb.rating`) for filters and sorts.
-- Avoid loading unbounded result sets.
-
-## Testing
-
-- Unit-test pure helpers (`buildTitleSearchFilter`, `normalizeYear`, `escapeRegex`) without a live database.
-- Mock `getDb` when testing modules that hit MongoDB.
+- Catch connection/query errors at page or caller boundary.
+- Surface `Error.message` in UI when appropriate; never leak connection strings.
