@@ -1,0 +1,56 @@
+---
+description: Platform architecture — simplicity first, use built-in capabilities
+alwaysApply: true
+---
+
+# Architecture
+
+Simplicity is the default. Prefer the smallest solution that meets the requirement.
+
+## Stack
+
+| Role | Platform |
+|------|----------|
+| Development | Cursor |
+| CI/CD | GitHub (Actions, branch protection, PR checks) |
+| Hosting | Vercel |
+| Data | MongoDB Atlas |
+
+Stay within this stack unless there is a clear, documented reason to add a new service.
+
+## Prefer platform capabilities over custom code
+
+Before writing infrastructure, automation, or glue code, check what the platforms already provide for free:
+
+- **Vercel** — deployments, preview URLs, env vars, cron, edge config, analytics, image optimization, serverless/edge functions, caching
+- **GitHub** — Actions workflows, Dependabot, branch rules, environments, secrets, deployment status checks
+- **MongoDB Atlas** — managed cluster, indexes, Atlas Search, backups, monitoring, triggers
+- **Cursor** — rules, skills, hooks, automations for repeatable dev workflows
+
+Built-in beats bespoke. Custom code is for product logic the platforms cannot cover.
+
+## Decision guide
+
+1. Can a platform feature solve this? Use it.
+2. Can an existing project library or Next.js/Vercel convention solve this? Use it.
+3. Only then write new code — and keep it minimal.
+
+## Examples
+
+```text
+❌ Self-hosted CI runner, custom deploy script, hand-rolled image CDN
+✅ GitHub Actions + Vercel auto-deploy on push
+
+❌ Custom job scheduler service for nightly sync
+✅ Vercel Cron hitting an API route
+
+❌ Regex-only search with client-side filtering at scale
+✅ Atlas Search index + `$search` when full-text search is needed
+
+❌ New Redis/queue service for a one-off background task
+✅ Vercel function + existing MongoDB collection, or Workflow if durability is required
+```
+
+## When adding complexity
+
+Document why the stack's built-ins were insufficient. Favor one well-supported integration over several partial custom pieces.
