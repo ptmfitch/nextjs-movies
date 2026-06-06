@@ -33,11 +33,15 @@ const mockMovie: Movie = {
 };
 
 describe("MovieCard", () => {
-  it("renders title, year, and rating", () => {
+  it("renders title, year, rating, and poster", () => {
     render(<MovieCard movie={mockMovie} />);
 
     expect(screen.getByRole("heading", { name: "Inception" })).toBeInTheDocument();
     expect(screen.getByText(/2010/)).toBeInTheDocument();
     expect(screen.getByText("8.8")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Inception poster" })).toHaveAttribute(
+      "src",
+      mockMovie.poster,
+    );
   });
 });

@@ -2,6 +2,7 @@ import type { Filter } from "mongodb";
 
 import { getMongoCollectionName } from "@/lib/env";
 import { getDb } from "@/lib/mongodb";
+import { normalizeYear } from "@/lib/normalize";
 import { escapeRegex } from "@/lib/regex";
 import type { Movie, MovieDocument } from "@/types/movie";
 
@@ -32,7 +33,7 @@ function serializeMovie(doc: MovieDocument): Movie {
     rated: doc.rated ?? "",
     awards: doc.awards ?? { wins: 0, nominations: 0, text: "" },
     lastupdated: doc.lastupdated ?? "",
-    year: doc.year ?? 0,
+    year: normalizeYear(doc.year),
     imdb: doc.imdb ?? { rating: 0, votes: 0, id: 0 },
     countries: doc.countries ?? [],
     type: doc.type ?? "",

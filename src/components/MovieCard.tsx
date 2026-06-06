@@ -1,3 +1,4 @@
+import { PosterImage } from "@/components/PosterImage";
 import type { Movie } from "@/types/movie";
 
 interface MovieCardProps {
@@ -13,12 +14,9 @@ export function MovieCard({ movie }: MovieCardProps) {
     <article className="group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70 shadow-lg transition duration-300 hover:-translate-y-1 hover:border-amber-400/40 hover:shadow-amber-400/10">
       <div className="aspect-[2/3] overflow-hidden bg-zinc-800">
         {movie.poster ? (
-          // eslint-disable-next-line @next/next/no-img-element -- posters come from many external hosts
-          <img
+          <PosterImage
             src={movie.poster}
             alt={`${movie.title} poster`}
-            loading="lazy"
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-zinc-500">

@@ -62,7 +62,7 @@ export interface MovieDocument {
   rated?: string;
   awards?: MovieAwards;
   lastupdated?: string;
-  year?: number;
+  year?: number | string;
   imdb?: MovieImdb;
   countries?: string[];
   type?: string;
