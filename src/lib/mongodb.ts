@@ -27,3 +27,13 @@ export async function getDb(): Promise<Db> {
   const client = await getClientPromise();
   return client.db(getMongoDbName());
 }
+
+/** Closes the shared client. Used by one-off scripts, not the Next.js server. */
+export async function closeDb(): Promise<void> {
+  if (!global._mongoClientPromise) {
+    return;
+  }
+
+  await global._mongoClientPromise.client.close();
+  global._mongoClientPromise = undefined;
+}

@@ -23,12 +23,19 @@ Official `mongodb` driver (not Mongoose) against Atlas `sample_mflix`.
 - Blank search queries return safe defaults — do not throw.
 - Use typed `Filter<Document>` from `mongodb`.
 
+## Indexes
+
+- Definitions live in `src/lib/db-indexes.ts`; sync via `src/lib/sync-indexes.ts`.
+- Applied automatically on server startup in `src/instrumentation.ts` (idempotent `createIndexes()`).
+- Manual sync: `npm run db:sync-indexes`. Safe to rerun — only missing/changed indexes are created.
+- When changing filters or sorts in `movies.ts`, update `MOVIE_INDEXES` to match.
+
 ## Limits
 
 - Cap list/search results (default `.limit(24)`).
 - Use `.sort()` and projection; avoid unbounded result sets.
 - Prefer `title`, `year`, `imdb.rating` for filters/sorts.
-- This app does not create indexes; regex title search may be slow at scale.
+- Regex title search is not indexed by the compound indexes; may be slow at scale without Atlas Search.
 
 ## Errors
 
