@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SearchBar } from "@/components/SearchBar";
 
-let searchParams = new URLSearchParams("q=matrix");
+let searchParams = new URLSearchParams("q=matrix&page=2&sort=title-asc");
 
 const push = vi.fn((url: string) => {
   if (url === "/") {
@@ -24,7 +24,7 @@ vi.mock("next/navigation", () => ({
 describe("SearchBar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    searchParams = new URLSearchParams("q=matrix");
+    searchParams = new URLSearchParams("q=matrix&page=2&sort=title-asc");
   });
 
   it("renders with the current search query", () => {
@@ -32,7 +32,7 @@ describe("SearchBar", () => {
     expect(screen.getByRole("searchbox")).toHaveValue("matrix");
   });
 
-  it("submits a trimmed search query", () => {
+  it("submits a trimmed search query and preserves sort while resetting page", () => {
     render(<SearchBar />);
 
     fireEvent.change(screen.getByRole("searchbox"), {
@@ -40,7 +40,7 @@ describe("SearchBar", () => {
     });
     fireEvent.submit(screen.getByRole("button", { name: "Search" }));
 
-    expect(push).toHaveBeenCalledWith("/?q=inception");
+    expect(push).toHaveBeenCalledWith("/?q=inception&sort=title-asc");
   });
 
   it("clears the query and navigates home", () => {
