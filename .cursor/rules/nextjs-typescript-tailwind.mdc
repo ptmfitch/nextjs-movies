@@ -1,0 +1,40 @@
+---
+description: TypeScript and Tailwind CSS conventions for this Next.js app
+globs: src/**/*.{ts,tsx}, src/app/globals.css
+alwaysApply: false
+---
+
+# TypeScript + Tailwind
+
+## Project structure
+
+- `src/app/` — routes, layouts, global styles
+- `src/components/` — reusable UI
+- `src/lib/` — data access, utilities, env helpers
+- `src/types/` — shared TypeScript types
+
+## TypeScript
+
+- Use explicit types for props, MongoDB documents, and serialized API shapes.
+- Prefer `interface` for object shapes; use `type` for unions and mapped types.
+- Import types with `import type` when values are not needed.
+- Validate external input at boundaries (`src/lib/env.ts`, search query handling).
+
+## Tailwind CSS v4
+
+- Global theme tokens live in `src/app/globals.css` (`@import "tailwindcss"`, `@theme inline`).
+- Use utility classes in components; match the existing dark zinc/amber palette.
+- Keep layouts responsive with standard breakpoints (`sm:`, `md:`, `lg:`).
+- Fonts are loaded in `layout.tsx` via `next/font` CSS variables (`--font-geist-sans`).
+
+## Styling patterns
+
+- Dark background: `bg-zinc-950`, text: `text-zinc-100`, accents: `text-amber-400`.
+- Use semantic HTML (`header`, `main`, `section`) with accessible contrast.
+- Avoid inline styles unless Tailwind cannot express the rule cleanly.
+
+## Code quality
+
+- Follow ESLint (`eslint-config-next`) and existing naming conventions.
+- Minimize comments; prefer clear names over explanatory noise.
+- Reuse existing components and lib helpers before adding new abstractions.

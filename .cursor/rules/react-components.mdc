@@ -1,0 +1,44 @@
+---
+description: React component patterns for reusable UI in src/components
+globs: src/components/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# React Components
+
+## Before creating a component
+
+1. Check `src/components/` for an existing component that can be extended.
+2. Define purpose, props, and whether it must be a Client or Server Component.
+3. Match patterns from `MovieCard`, `MovieGrid`, `PosterImage`, and `SearchBar`.
+
+## Server vs client
+
+- Default to Server Components (no `"use client"`).
+- Add `"use client"` only when using `useState`, `useEffect`, event handlers, or `next/navigation` client hooks (`useRouter`, `useSearchParams`).
+
+## Props and types
+
+- Export a named function component with typed props.
+- Import shared types from `@/types/` (e.g. `Movie`).
+- Keep presentation components pure; pass data and callbacks via props.
+
+## Styling
+
+- Use Tailwind utility classes; follow the zinc/amber theme used elsewhere.
+- Ensure interactive elements have accessible labels (`aria-label`, visible text, or `alt` on images).
+
+## Images
+
+- Use `next/image` in `PosterImage` and similar components.
+- Provide meaningful `alt` text derived from movie title or context.
+
+## Imports
+
+- Use path alias `@/components/...` and `@/types/...`.
+- Do not introduce shadcn/ui or external component libraries unless explicitly requested.
+
+## Tests
+
+- Add a colocated `ComponentName.test.tsx` using Vitest and Testing Library.
+- Test rendered output and user-visible behavior, not implementation details.
