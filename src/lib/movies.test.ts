@@ -231,6 +231,20 @@ describe("searchMoviesByTitle", () => {
     expect(result.total).toBe(1);
   });
 
+  it("surfaces Atlas Search failures that do not mean search is unavailable", async () => {
+    mockAggregateToArray.mockRejectedValue(
+      new Error(
+        "Atlas Search index has an invalid autocomplete index field definition for $search",
+      ),
+    );
+
+    await expect(searchMoviesByTitle("matrix")).rejects.toThrow(
+      "invalid autocomplete index field definition",
+    );
+
+    expect(mockFind).not.toHaveBeenCalled();
+  });
+
   it("falls back to whitespace-tolerant regex when Atlas Search has no matches", async () => {
     mockAggregateToArray.mockResolvedValueOnce([]);
     mockCountDocuments.mockResolvedValue(1);

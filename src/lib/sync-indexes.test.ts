@@ -85,7 +85,25 @@ describe("syncMovieIndexes", () => {
       toArray: vi.fn().mockResolvedValue(
         MOVIE_SEARCH_INDEXES.map((index) => ({
           name: index.name,
-          latestDefinition: index.definition,
+          latestDefinition: {
+            mappings: {
+              dynamic: false,
+              fields: {
+                title: [
+                  {
+                    type: "autocomplete",
+                    tokenization: "nGram",
+                    minGrams: 2,
+                    maxGrams: 20,
+                    foldDiacritics: true,
+                    analyzer: "lucene.standard",
+                  },
+                  { type: "string", analyzer: "lucene.standard" },
+                ],
+              },
+            },
+            storedSource: false,
+          },
         })),
       ),
     });
@@ -99,6 +117,18 @@ describe("syncMovieIndexes", () => {
     expect(mockDropIndex).not.toHaveBeenCalled();
     expect(mockCreateSearchIndex).not.toHaveBeenCalled();
     expect(mockUpdateSearchIndex).not.toHaveBeenCalled();
+  });
+
+  it("does not update existing search indexes while definitions are unavailable", async () => {
+    mockListSearchIndexes.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([{ name: "movies_title_search" }]),
+    });
+
+    const result = await syncMovieIndexes();
+
+    expect(mockUpdateSearchIndex).not.toHaveBeenCalled();
+    expect(result.searchCreated).toEqual([]);
+    expect(result.searchUpdated).toEqual([]);
   });
 
   it("updates changed search indexes", async () => {

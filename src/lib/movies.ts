@@ -156,15 +156,13 @@ function buildTitleSearchStage(query: string): Document {
 
 function isAtlasSearchUnavailableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
+  const normalizedMessage = message.toLowerCase();
 
   return (
-    message.includes("$search") ||
-    message.includes("Atlas Search") ||
-    message.includes("Search index") ||
-    message.includes("search index") ||
-    message.includes("not indexed as autocomplete") ||
-    message.includes("autocomplete index field definition") ||
-    message.includes("unrecognized pipeline stage name")
+    normalizedMessage.includes("$search is not available") ||
+    normalizedMessage.includes("$search is not supported") ||
+    normalizedMessage.includes("unrecognized pipeline stage name") ||
+    /search index .*(does not exist|not found|could not be found)/i.test(message)
   );
 }
 

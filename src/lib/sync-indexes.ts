@@ -23,27 +23,46 @@ interface SearchIndexInfo {
 
 let syncPromise: Promise<SyncMovieIndexesResult> | undefined;
 
-function normalizeForComparison(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(normalizeForComparison);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function includesExpectedDefinition(actual: unknown, expected: unknown): boolean {
+  if (Array.isArray(expected)) {
+    if (!Array.isArray(actual)) {
+      return false;
+    }
+
+    const unmatched = [...actual];
+    return expected.every((expectedItem) => {
+      const matchIndex = unmatched.findIndex((actualItem) =>
+        includesExpectedDefinition(actualItem, expectedItem),
+      );
+
+      if (matchIndex === -1) {
+        return false;
+      }
+
+      unmatched.splice(matchIndex, 1);
+      return true;
+    });
   }
 
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, normalizeForComparison(nested)]),
+  if (isRecord(expected)) {
+    if (!isRecord(actual)) {
+      return false;
+    }
+
+    return Object.entries(expected).every(([key, expectedValue]) =>
+      includesExpectedDefinition(actual[key], expectedValue),
     );
   }
 
-  return value;
+  return Object.is(actual, expected);
 }
 
-function definitionsMatch(left: unknown, right: unknown): boolean {
-  return (
-    JSON.stringify(normalizeForComparison(left)) ===
-    JSON.stringify(normalizeForComparison(right))
-  );
+function definitionsMatch(existing: unknown, expected: unknown): boolean {
+  return includesExpectedDefinition(existing, expected);
 }
 
 function getErrorMessage(error: unknown): string {
@@ -110,6 +129,10 @@ async function runSync(): Promise<SyncMovieIndexesResult> {
 
       const existingDefinition =
         existingSearchIndex.latestDefinition ?? existingSearchIndex.definition;
+
+      if (!existingDefinition) {
+        continue;
+      }
 
       if (!definitionsMatch(existingDefinition, searchIndex.definition)) {
         await collection.updateSearchIndex(
