@@ -59,6 +59,7 @@ Standard scripts are in `package.json` / `README.md`: `npm run dev`, `lint`, `te
 
 ### Gotchas
 
+- Next.js loads env from `.env.local`, not the shell. If `MONGODB_URI` is set as a Cursor secret but `.env.local` is missing, copy `.env.local.example` and write the secret value into `MONGODB_URI` before `dev`/`build`.
 - Without `MONGODB_URI`, the homepage shows a configuration error instead of movies.
 - Unit tests mock MongoDB and do not need a live database; browser/E2E verification does.
 - Poster images load from external URLs in MongoDB documents; some may fail and show a fallback UI (expected).
