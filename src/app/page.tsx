@@ -32,15 +32,14 @@ export default async function Home({ searchParams }: HomeProps) {
       <header className="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-10">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-amber-400">
-              sample_mflix
+            <p className="text-sm font-medium tracking-[0.2em] text-amber-400">
+              Nextjs-Movies
             </p>
             <h1 className="mt-2 text-4xl font-bold tracking-tight text-white sm:text-5xl">
               Movie Browser
             </h1>
             <p className="mt-3 max-w-2xl text-base text-zinc-400">
-              Browse posters from the MongoDB movies collection and search by
-              title.
+              Browse movie posters and search by title.
             </p>
           </div>
           <Suspense
