@@ -18,22 +18,43 @@ Simplicity is the default. Prefer the smallest solution that meets the requireme
 
 Stay within this stack unless there is a clear, documented reason to add a new service.
 
+## MongoDB first — no custom database hacks
+
+**Database work belongs on MongoDB Atlas, not in application code.**
+
+Before writing any query logic, filtering, matching, sorting, aggregation, or search in TypeScript/Node:
+
+1. **Check what Atlas already provides** — indexes, Atlas Search (`$search`), Atlas Vector Search, aggregation pipeline operators, compound indexes, etc.
+2. **Use the platform feature.** Configure the index or search definition, push the work into the query, done.
+3. **Do not** fall back to custom application-layer substitutes when Atlas can do it.
+
+This is non-negotiable. Do not write:
+
+- Regex-based or `$regex` text search when Atlas Search exists
+- Client-side or in-memory filtering that should be a `$match`, index, or `$search` stage
+- Hand-rolled fuzzy matching, autocomplete, or relevance scoring
+- Application code that loops documents to simulate joins, grouping, or faceting Atlas handles natively
+- "Good enough for now" hacks with the intent to replace later — use the right tool the first time
+
+Custom database code is a last resort, only when Atlas genuinely cannot express the requirement (rare — document why before proceeding).
+
 ## Prefer platform capabilities over custom code
 
 Before writing infrastructure, automation, or glue code, check what the platforms already provide for free:
 
 - **Vercel** — deployments, preview URLs, env vars, cron, edge config, analytics, image optimization, serverless/edge functions, caching
 - **GitHub** — Actions workflows, Dependabot, branch rules, environments, secrets, deployment status checks
-- **MongoDB Atlas** — managed cluster, indexes, Atlas Search, backups, monitoring, triggers
+- **MongoDB Atlas** — managed cluster, indexes, Atlas Search, Atlas Vector Search, backups, monitoring, triggers, aggregation
 - **Cursor** — rules, skills, hooks, automations for repeatable dev workflows
 
 Built-in beats bespoke. Custom code is for product logic the platforms cannot cover.
 
 ## Decision guide
 
-1. Can a platform feature solve this? Use it.
-2. Can an existing project library or Next.js/Vercel convention solve this? Use it.
-3. Only then write new code — and keep it minimal.
+1. Can a **MongoDB Atlas** feature solve this (especially search, filtering, indexing)? Use it.
+2. Can another platform feature solve this (Vercel, GitHub)? Use it.
+3. Can an existing project library or Next.js/Vercel convention solve this? Use it.
+4. Only then write new code — and keep it minimal.
 
 ## Examples
 
@@ -44,8 +65,11 @@ Built-in beats bespoke. Custom code is for product logic the platforms cannot co
 ❌ Custom job scheduler service for nightly sync
 ✅ Vercel Cron hitting an API route
 
-❌ Regex-only search with client-side filtering at scale
-✅ Atlas Search index + `$search` when full-text search is needed
+❌ Regex / `$regex` / string.includes filtering for movie search
+✅ Atlas Search index + `$search` (autocomplete, fuzzy, relevance — all built in)
+
+❌ Fetch all docs and filter/sort/rank in Node because "it's simpler to code"
+✅ Compound index + `$match` / aggregation / `$search` in MongoDB
 
 ❌ New Redis/queue service for a one-off background task
 ✅ Vercel function + existing MongoDB collection, or Workflow if durability is required
@@ -53,4 +77,4 @@ Built-in beats bespoke. Custom code is for product logic the platforms cannot co
 
 ## When adding complexity
 
-Document why the stack's built-ins were insufficient. Favor one well-supported integration over several partial custom pieces.
+Document why the stack's built-ins were insufficient. Favor one well-supported integration over several partial custom pieces. For database changes, that documentation must explain why Atlas Search, indexes, or aggregation could not meet the requirement.
