@@ -59,6 +59,20 @@ describe("syncMovieIndexes", () => {
     });
   });
 
+  it("ignores orphan indexes already dropped by another sync", async () => {
+    mockDropIndex.mockRejectedValueOnce(
+      Object.assign(new Error("index not found"), {
+        code: 27,
+        codeName: "IndexNotFound",
+      }),
+    );
+
+    const result = await syncMovieIndexes();
+
+    expect(mockDropIndex).toHaveBeenCalledWith("movies_poster_year_desc");
+    expect(result.dropped).toEqual([]);
+  });
+
   it("reports no changes when indexes already match the manifest", async () => {
     mockListIndexes.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([

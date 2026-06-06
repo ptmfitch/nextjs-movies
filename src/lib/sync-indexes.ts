@@ -10,8 +10,22 @@ export interface SyncMovieIndexesResult {
 }
 
 const PRESERVED_INDEX_NAMES = new Set(["_id_"]);
+const INDEX_NOT_FOUND_ERROR_CODE = 27;
 
 let syncPromise: Promise<SyncMovieIndexesResult> | undefined;
+
+function isIndexNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const mongoError = error as Error & { code?: number; codeName?: string };
+
+  return (
+    mongoError.code === INDEX_NOT_FOUND_ERROR_CODE ||
+    mongoError.codeName === "IndexNotFound"
+  );
+}
 
 async function runSync(): Promise<SyncMovieIndexesResult> {
   const db = await getDb();
@@ -34,7 +48,16 @@ async function runSync(): Promise<SyncMovieIndexesResult> {
       continue;
     }
 
-    await collection.dropIndex(name);
+    try {
+      await collection.dropIndex(name);
+    } catch (error) {
+      if (!isIndexNotFoundError(error)) {
+        throw error;
+      }
+
+      continue;
+    }
+
     dropped.push(name);
   }
 
