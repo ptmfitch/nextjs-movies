@@ -1,23 +1,23 @@
 ---
-description: Next.js App Router patterns for pages, layouts, and routing
+description: Next.js App Router routing and data-fetching conventions
 globs: src/app/**/*, next.config.ts
 alwaysApply: false
 ---
 
 # Next.js App Router
 
-This project uses Next.js 16 with the App Router (`src/app/`). Read `node_modules/next/dist/docs/` before changing routing, data fetching, or caching APIs — this version has breaking changes from older Next.js.
+Next.js 16 App Router. Read `node_modules/next/dist/docs/` before changing routing, data fetching, or caching — APIs differ from older versions.
 
-## Defaults
+## Structure
 
-- Prefer Server Components; add `"use client"` only for browser APIs, event handlers, or client hooks.
-- Use `layout.tsx` for shared shell, `page.tsx` for route UI, and `loading.tsx` / `error.tsx` when those states matter.
-- Use `route.ts` handlers for API endpoints when needed (not required for current movie data flow).
-- Export `metadata` or `generateMetadata` from layouts/pages for SEO.
+- `layout.tsx` — shared shell; `page.tsx` — route UI.
+- Add `loading.tsx` / `error.tsx` when those states matter.
+- Static assets in `public/`.
+- Export `metadata` or `generateMetadata` for SEO.
 
 ## Async route props (Next.js 15+)
 
-`searchParams`, `params`, and `headers()` are async. Await them in Server Components:
+`searchParams`, `params`, and `headers()` are async — await in Server Components:
 
 ```tsx
 interface HomeProps {
@@ -31,15 +31,10 @@ export default async function Home({ searchParams }: HomeProps) {
 
 ## Data fetching
 
-- Fetch MongoDB data in Server Components or `src/lib/` modules — not in Client Components.
-- Wrap slow or search-driven UI in `<Suspense>` with a meaningful fallback.
-- Handle errors in the page and surface a user-facing message instead of throwing uncaught errors.
-
-## Images and assets
-
-- Use `next/image` for posters and remote images; keep `alt` text descriptive.
-- Put static assets in `public/`.
+- Fetch MongoDB in Server Components or `src/lib/` — not Client Components.
+- Wrap slow UI in `<Suspense>` with a meaningful fallback.
+- Catch errors at the page boundary; show user-facing messages.
 
 ## File conventions
 
-Follow Next.js special filenames: `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `route.ts`.
+`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `route.ts`.

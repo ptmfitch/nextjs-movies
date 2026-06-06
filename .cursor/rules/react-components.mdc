@@ -1,44 +1,41 @@
 ---
-description: React component patterns for reusable UI in src/components
+description: React component conventions in src/components
 globs: src/components/**/*.{tsx,ts}
 alwaysApply: false
 ---
 
 # React Components
 
-## Before creating a component
+## Before adding a component
 
-1. Check `src/components/` for an existing component that can be extended.
-2. Define purpose, props, and whether it must be a Client or Server Component.
-3. Match patterns from `MovieCard`, `MovieGrid`, `PosterImage`, and `SearchBar`.
+1. Check `src/components/` for something to extend.
+2. Match patterns in `MovieCard`, `MovieGrid`, `PosterImage`, `SearchBar`.
 
 ## Server vs client
 
-- Default to Server Components (no `"use client"`).
-- Add `"use client"` only when using `useState`, `useEffect`, event handlers, or `next/navigation` client hooks (`useRouter`, `useSearchParams`).
+- Default: Server Component (no `"use client"`).
+- Client only for `useState`, `useEffect`, event handlers, or `useRouter` / `useSearchParams`.
 
 ## Props and types
 
-- Export a named function component with typed props.
-- Import shared types from `@/types/` (e.g. `Movie`).
-- Keep presentation components pure; pass data and callbacks via props.
+- Named export with typed props; import types from `@/types/`.
+- Presentation components stay pure — data and callbacks via props.
 
-## Styling
+## Styling and a11y
 
-- Use Tailwind utility classes; follow the zinc/amber theme used elsewhere.
-- Ensure interactive elements have accessible labels (`aria-label`, visible text, or `alt` on images).
+- Tailwind utilities; zinc/amber palette (see `nextjs-typescript-tailwind` rule).
+- Interactive elements need accessible labels (`aria-label`, visible text, or `alt`).
 
-## Images
+## Posters
 
-- Use `next/image` in `PosterImage` and similar components.
-- Provide meaningful `alt` text derived from movie title or context.
+- External poster URLs use plain `<img>` with `onError` fallback (`PosterImage`) — not `next/image`.
+- Meaningful `alt` from movie title.
 
 ## Imports
 
-- Use path alias `@/components/...` and `@/types/...`.
-- Do not introduce shadcn/ui or external component libraries unless explicitly requested.
+- Path aliases `@/components/...`, `@/types/...`.
+- No shadcn/ui or external UI libraries unless requested.
 
 ## Tests
 
-- Add a colocated `ComponentName.test.tsx` using Vitest and Testing Library.
-- Test rendered output and user-visible behavior, not implementation details.
+- Add colocated `ComponentName.test.tsx`; follow `vitest-unit-testing` rule.

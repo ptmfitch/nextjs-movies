@@ -1,51 +1,30 @@
 ---
-description: Vitest unit testing patterns for lib and component tests
+description: Vitest unit testing conventions when editing test files
 globs: **/*.test.{ts,tsx}, vitest.config.*, vitest.setup.ts
 alwaysApply: false
 ---
 
 # Vitest Unit Testing
 
-This project uses Vitest with jsdom, `@testing-library/react`, and `@testing-library/jest-dom` (see `vitest.config.mts` and `vitest.setup.ts`).
-
-## Focus
-
-- Test business logic (`src/lib/`) and component behavior (`src/components/`).
-- Mock external dependencies (MongoDB, env, network) before imports when needed.
-- Cover valid inputs, invalid inputs, and edge cases.
+Vitest + jsdom + Testing Library (`vitest.config.mts`, `vitest.setup.ts`).
 
 ## Conventions
 
-- Colocate tests as `*.test.ts` or `*.test.tsx` next to the module under test.
-- Use `describe` blocks grouped by function or component; use clear `it` names.
-- Import from `vitest`: `describe`, `it`, `expect`, `vi`, `beforeEach`.
-- For React components: `render`, `screen` from `@testing-library/react`.
+- Colocate `*.test.ts` / `*.test.tsx` next to the module under test.
+- Group with `describe`; use clear `it` names describing the scenario.
+- Import `describe`, `it`, `expect`, `vi`, `beforeEach` from `vitest`.
+- Mock at module boundaries (`getDb`, env helpers) — never hit live MongoDB.
+- Query UI by role, label, or accessible name; assert user-visible behavior.
+- Aim for 3–5 focused tests per file on critical paths.
 
 ## Mocking
 
 ```ts
-import { vi } from "vitest";
-
-vi.mock("@/lib/mongodb", () => ({
-  getDb: vi.fn(),
-}));
+vi.mock("@/lib/mongodb", () => ({ getDb: vi.fn() }));
 ```
 
-- Call `vi.clearAllMocks()` in `beforeEach` when mocks are shared across tests.
-- Prefer mocking at module boundaries (`getDb`, env helpers) over internal implementation details.
+Call `vi.clearAllMocks()` in `beforeEach` when mocks are shared.
 
-## Component tests
+## Fixtures
 
-- Query by role, label, or accessible name (`getByRole`, `getByText`).
-- Build realistic fixtures (see `MovieCard.test.tsx` for `Movie` shape).
-- Assert user-visible output, not CSS class names or internal state.
-
-## Lib tests
-
-- Test pure functions without I/O (see `movies.test.ts`, `regex.test.ts`).
-- Keep tests fast and deterministic — no live MongoDB in unit tests.
-
-## Quantity
-
-- Aim for 3–5 focused tests per file covering the critical paths.
-- Add tests when fixing bugs or adding non-trivial logic.
+Use realistic `Movie` shapes — see `MovieCard.test.tsx`.
