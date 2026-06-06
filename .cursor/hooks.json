@@ -3,7 +3,7 @@
   "hooks": {
     "afterShellExecution": [
       {
-        "command": ".cursor/hooks/notify-pull-request-slack.sh",
+        "command": "bash .cursor/hooks/notify-pull-request-slack.sh",
         "matcher": "gh pr create",
         "timeout": 15
       }
