@@ -6,7 +6,9 @@ import { FormEvent, useState } from "react";
 export function SearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
+  const urlQuery = searchParams.get("q") ?? "";
+  const [draft, setDraft] = useState<string | null>(null);
+  const query = draft ?? urlQuery;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -17,12 +19,13 @@ export function SearchBar() {
       params.set("q", trimmed);
     }
 
+    setDraft(null);
     const nextUrl = params.toString() ? `/?${params.toString()}` : "/";
     router.push(nextUrl);
   }
 
   function handleClear() {
-    setQuery("");
+    setDraft(null);
     router.push("/");
   }
 
@@ -35,7 +38,7 @@ export function SearchBar() {
         id="movie-search"
         type="search"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => setDraft(event.target.value)}
         placeholder="Search by title..."
         className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
       />

@@ -1,14 +1,26 @@
 import fs from "node:fs";
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient } from "mongodb";
 
 const CONCURRENCY = 40;
 const BATCH_SIZE = 500;
 
+function getEnv(name, fallback) {
+  const value = process.env[name] ?? fallback;
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 function getMongoUri() {
+  if (process.env.MONGODB_URI) {
+    return process.env.MONGODB_URI;
+  }
+
   const env = fs.readFileSync(".env.local", "utf8");
   const match = env.match(/MONGODB_URI=(.+)/);
   if (!match) {
-    throw new Error("MONGODB_URI not found in .env.local");
+    throw new Error("MONGODB_URI not found in environment or .env.local");
   }
   return match[1].trim();
 }
@@ -48,7 +60,7 @@ async function checkPoster(url, retries = 1) {
     }
 
     return "other";
-  } catch (error) {
+  } catch {
     if (retries > 0) {
       return checkPoster(url, retries - 1);
     }
@@ -77,10 +89,12 @@ async function mapWithConcurrency(items, concurrency, worker) {
 
 async function main() {
   const uri = getMongoUri();
+  const dbName = getEnv("MONGODB_DB", "sample_mflix");
+  const collectionName = getEnv("MONGODB_COLLECTION", "movies");
   const client = new MongoClient(uri);
 
   await client.connect();
-  const collection = client.db("sample_mflix").collection("movies");
+  const collection = client.db(dbName).collection(collectionName);
 
   const cursor = collection.find(
     { poster: { $exists: true, $ne: "" } },
@@ -88,7 +102,7 @@ async function main() {
   );
 
   let scanned = 0;
-  let deleted = 0;
+  let cleared = 0;
   let brokenFound = 0;
   let kept = 0;
   let skipped = 0;
@@ -112,13 +126,13 @@ async function main() {
       return { doc, status };
     });
 
-    const idsToDelete = [];
+    const idsToClear = [];
 
     for (const { doc, status } of checks) {
       scanned += 1;
       if (status === "broken") {
         brokenFound += 1;
-        idsToDelete.push(doc._id);
+        idsToClear.push(doc._id);
         console.log(`404: ${doc.title}`);
       } else if (status === "ok") {
         kept += 1;
@@ -127,13 +141,16 @@ async function main() {
       }
     }
 
-    if (idsToDelete.length > 0) {
-      const result = await collection.deleteMany({ _id: { $in: idsToDelete } });
-      deleted += result.deletedCount;
+    if (idsToClear.length > 0) {
+      const result = await collection.updateMany(
+        { _id: { $in: idsToClear } },
+        { $unset: { poster: "" } },
+      );
+      cleared += result.modifiedCount;
     }
 
     console.log(
-      `Progress: scanned=${scanned} deleted=${deleted} broken=${brokenFound} kept=${kept} skipped=${skipped}`,
+      `Progress: scanned=${scanned} cleared=${cleared} broken=${brokenFound} kept=${kept} skipped=${skipped}`,
     );
   }
 
@@ -141,7 +158,7 @@ async function main() {
   await client.close();
 
   console.log(
-    JSON.stringify({ scanned, deleted, brokenFound, kept, skipped }, null, 2),
+    JSON.stringify({ scanned, cleared, brokenFound, kept, skipped }, null, 2),
   );
 }
 

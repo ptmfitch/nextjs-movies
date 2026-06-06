@@ -26,9 +26,9 @@ export function MovieCard({ movie }: MovieCardProps) {
       </div>
       <div className="space-y-2 p-4">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold leading-tight text-white">
+          <h3 className="text-lg font-semibold leading-tight text-white">
             {movie.title}
-          </h2>
+          </h3>
           <span className="shrink-0 rounded-full bg-amber-400/15 px-2.5 py-1 text-xs font-semibold text-amber-300">
             {rating}
           </span>
