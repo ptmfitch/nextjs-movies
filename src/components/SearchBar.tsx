@@ -3,25 +3,27 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+import { buildMovieListUrl, readMovieListParams } from "@/lib/movie-list-url";
+
 export function SearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlQuery = searchParams.get("q") ?? "";
+  const { q: urlQuery, sort } = readMovieListParams(searchParams);
   const [draft, setDraft] = useState<string | null>(null);
   const query = draft ?? urlQuery;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = query.trim();
-    const params = new URLSearchParams();
-
-    if (trimmed) {
-      params.set("q", trimmed);
-    }
 
     setDraft(null);
-    const nextUrl = params.toString() ? `/?${params.toString()}` : "/";
-    router.push(nextUrl);
+    router.push(
+      buildMovieListUrl({
+        q: trimmed || undefined,
+        sort,
+        page: 1,
+      }),
+    );
   }
 
   function handleClear() {

@@ -1,10 +1,32 @@
 import type { Filter } from "mongodb";
 
 import { getMongoCollectionName } from "@/lib/env";
+import {
+  DEFAULT_MOVIE_SORT,
+  MOVIES_PAGE_SIZE,
+  buildMovieSort,
+  clampMoviePage,
+  type MoviesQueryOptions,
+  type MoviesQueryResult,
+} from "@/lib/movie-params";
 import { getDb } from "@/lib/mongodb";
 import { normalizeYear } from "@/lib/normalize";
 import { escapeRegex } from "@/lib/regex";
 import type { Movie, MovieDocument } from "@/types/movie";
+
+export {
+  DEFAULT_MOVIE_SORT,
+  MOVIES_PAGE_SIZE,
+  buildMovieSort,
+  buildMoviesRange,
+  formatMoviesRangeText,
+  parseMoviePage,
+  parseMovieSort,
+  type MovieSort,
+  type MoviesQueryOptions,
+  type MoviesQueryResult,
+  type MoviesRange,
+} from "@/lib/movie-params";
 
 export const POSTER_FILTER = {
   poster: { $exists: true, $ne: "" },
@@ -45,36 +67,55 @@ function serializeMovie(doc: MovieDocument): Movie {
   };
 }
 
-export async function listMovies(limit = 24): Promise<Movie[]> {
+function resolveQueryOptions(options: MoviesQueryOptions = {}) {
+  const pageSize = options.pageSize ?? MOVIES_PAGE_SIZE;
+  const sort = options.sort ?? DEFAULT_MOVIE_SORT;
+  const requestedPage = options.page ?? 1;
+
+  return { pageSize, sort, requestedPage };
+}
+
+async function queryMovies(
+  filter: Filter<MovieDocument>,
+  options: MoviesQueryOptions = {},
+): Promise<MoviesQueryResult> {
+  const { pageSize, sort, requestedPage } = resolveQueryOptions(options);
   const db = await getDb();
-  const docs = (await db
-    .collection<MovieDocument>(getMongoCollectionName())
-    .find(POSTER_FILTER)
+  const collection = db.collection<MovieDocument>(getMongoCollectionName());
+
+  const total = await collection.countDocuments(filter);
+  const page = clampMoviePage(requestedPage, total, pageSize);
+
+  const docs = (await collection
+    .find(filter)
     .project(MOVIE_PROJECTION)
-    .sort({ year: -1 })
-    .limit(limit)
+    .sort(buildMovieSort(sort))
+    .skip((page - 1) * pageSize)
+    .limit(pageSize)
     .toArray()) as MovieDocument[];
 
-  return docs.map(serializeMovie);
+  return {
+    movies: docs.map(serializeMovie),
+    total,
+    page,
+    pageSize,
+  };
+}
+
+export async function listMovies(
+  options: MoviesQueryOptions = {},
+): Promise<MoviesQueryResult> {
+  return queryMovies(POSTER_FILTER, options);
 }
 
 export async function searchMoviesByTitle(
   query: string,
-  limit = 24,
-): Promise<Movie[]> {
+  options: MoviesQueryOptions = {},
+): Promise<MoviesQueryResult> {
   const filter = buildTitleSearchFilter(query);
   if (Object.keys(filter).length === 0) {
-    return listMovies(limit);
+    return listMovies(options);
   }
 
-  const db = await getDb();
-  const docs = (await db
-    .collection<MovieDocument>(getMongoCollectionName())
-    .find(filter)
-    .project(MOVIE_PROJECTION)
-    .sort({ "imdb.rating": -1 })
-    .limit(limit)
-    .toArray()) as MovieDocument[];
-
-  return docs.map(serializeMovie);
+  return queryMovies(filter, options);
 }

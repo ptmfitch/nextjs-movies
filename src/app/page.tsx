@@ -1,31 +1,57 @@
 import { Suspense } from "react";
 
 import { MovieGrid } from "@/components/MovieGrid";
+import { MovieListMeta } from "@/components/MovieListMeta";
+import { Pagination } from "@/components/Pagination";
 import { SearchBar } from "@/components/SearchBar";
-import { listMovies, searchMoviesByTitle } from "@/lib/movies";
+import { SortSelect } from "@/components/SortSelect";
+import {
+  MOVIES_PAGE_SIZE,
+  buildMoviesRange,
+  listMovies,
+  parseMoviePage,
+  parseMovieSort,
+  searchMoviesByTitle,
+} from "@/lib/movies";
 import type { Movie } from "@/types/movie";
 
 interface HomeProps {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; sort?: string }>;
 }
 
 export default async function Home({ searchParams }: HomeProps) {
-  const { q } = await searchParams;
+  const { q, page: pageParam, sort: sortParam } = await searchParams;
   const query = q?.trim() ?? "";
+  const page = parseMoviePage(pageParam);
+  const sort = parseMovieSort(sortParam);
 
   let movies: Movie[] = [];
+  let total = 0;
+  let currentPage = page;
+  let pageSize = MOVIES_PAGE_SIZE;
   let errorMessage: string | null = null;
 
   try {
-    movies = query
-      ? await searchMoviesByTitle(query)
-      : await listMovies();
+    const result = query
+      ? await searchMoviesByTitle(query, { page, sort })
+      : await listMovies({ page, sort });
+
+    movies = result.movies;
+    total = result.total;
+    currentPage = result.page;
+    pageSize = result.pageSize;
   } catch (error) {
     errorMessage =
       error instanceof Error
         ? error.message
         : "Unable to load movies from MongoDB.";
   }
+
+  const range = buildMoviesRange({
+    page: currentPage,
+    pageSize,
+    total,
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -67,15 +93,29 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
         ) : (
           <>
-            <div className="mb-8 flex items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold text-white">
-                {query ? `Results for "${query}"` : "Latest movies"}
-              </h2>
-              <p className="text-sm text-zinc-500">
-                {movies.length} movie{movies.length === 1 ? "" : "s"}
-              </p>
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <MovieListMeta
+                start={range.start}
+                end={range.end}
+                total={range.total}
+                query={query}
+              />
+              <Suspense
+                fallback={
+                  <div className="h-11 w-48 animate-pulse rounded-xl bg-zinc-800" />
+                }
+              >
+                <SortSelect />
+              </Suspense>
             </div>
             <MovieGrid movies={movies} query={query} />
+            <Suspense fallback={null}>
+              <Pagination
+                page={currentPage}
+                total={total}
+                pageSize={pageSize}
+              />
+            </Suspense>
           </>
         )}
       </main>

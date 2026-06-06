@@ -11,10 +11,15 @@ import { getDb } from "@/lib/mongodb";
 
 const mockToArray = vi.fn();
 const mockLimit = vi.fn(() => ({ toArray: mockToArray }));
-const mockSort = vi.fn(() => ({ limit: mockLimit }));
+const mockSkip = vi.fn(() => ({ limit: mockLimit }));
+const mockSort = vi.fn(() => ({ skip: mockSkip }));
 const mockProject = vi.fn(() => ({ sort: mockSort }));
 const mockFind = vi.fn(() => ({ project: mockProject }));
-const mockCollection = vi.fn(() => ({ find: mockFind }));
+const mockCountDocuments = vi.fn();
+const mockCollection = vi.fn(() => ({
+  find: mockFind,
+  countDocuments: mockCountDocuments,
+}));
 
 vi.mock("@/lib/mongodb", () => ({
   getDb: vi.fn(),
@@ -53,7 +58,8 @@ describe("listMovies", () => {
     } as never);
   });
 
-  it("queries movies with poster filter, projection, and limit", async () => {
+  it("queries movies with poster filter, projection, sort, skip, and limit", async () => {
+    mockCountDocuments.mockResolvedValue(50);
     mockToArray.mockResolvedValue([
       {
         _id: { toString: () => "abc123" },
@@ -67,25 +73,42 @@ describe("listMovies", () => {
       },
     ]);
 
-    const movies = await listMovies(12);
+    const result = await listMovies({ page: 2, pageSize: 12, sort: "title-asc" });
 
     expect(mockCollection).toHaveBeenCalledWith("movies");
+    expect(mockCountDocuments).toHaveBeenCalledWith(POSTER_FILTER);
     expect(mockFind).toHaveBeenCalledWith(POSTER_FILTER);
     expect(mockProject).toHaveBeenCalledWith(MOVIE_PROJECTION);
-    expect(mockSort).toHaveBeenCalledWith({ year: -1 });
+    expect(mockSort).toHaveBeenCalledWith({ title: 1 });
+    expect(mockSkip).toHaveBeenCalledWith(12);
     expect(mockLimit).toHaveBeenCalledWith(12);
-    expect(movies).toEqual([
-      {
-        _id: "abc123",
-        title: "Inception",
-        year: 2010,
-        runtime: 148,
-        genres: ["Action"],
-        cast: ["Leonardo DiCaprio"],
-        poster: "https://example.com/inception.jpg",
-        imdb: { rating: 8.8 },
-      },
-    ]);
+    expect(result).toEqual({
+      movies: [
+        {
+          _id: "abc123",
+          title: "Inception",
+          year: 2010,
+          runtime: 148,
+          genres: ["Action"],
+          cast: ["Leonardo DiCaprio"],
+          poster: "https://example.com/inception.jpg",
+          imdb: { rating: 8.8 },
+        },
+      ],
+      total: 50,
+      page: 2,
+      pageSize: 12,
+    });
+  });
+
+  it("clamps the page when it exceeds the total pages", async () => {
+    mockCountDocuments.mockResolvedValue(30);
+    mockToArray.mockResolvedValue([]);
+
+    const result = await listMovies({ page: 5, pageSize: 24 });
+
+    expect(mockSkip).toHaveBeenCalledWith(24);
+    expect(result.page).toBe(2);
   });
 });
 
@@ -98,6 +121,7 @@ describe("searchMoviesByTitle", () => {
   });
 
   it("falls back to listMovies for blank queries", async () => {
+    mockCountDocuments.mockResolvedValue(0);
     mockToArray.mockResolvedValue([]);
 
     await searchMoviesByTitle("   ");
@@ -106,7 +130,8 @@ describe("searchMoviesByTitle", () => {
     expect(mockSort).toHaveBeenCalledWith({ year: -1 });
   });
 
-  it("searches by title with poster filter and imdb sort", async () => {
+  it("searches by title with poster filter and selected sort", async () => {
+    mockCountDocuments.mockResolvedValue(10);
     mockToArray.mockResolvedValue([
       {
         _id: { toString: () => "def456" },
@@ -116,14 +141,15 @@ describe("searchMoviesByTitle", () => {
       },
     ]);
 
-    const movies = await searchMoviesByTitle("matrix");
+    const result = await searchMoviesByTitle("matrix", { sort: "title-desc" });
 
     expect(mockFind).toHaveBeenCalledWith({
       poster: { $exists: true, $ne: "" },
       title: { $regex: "matrix", $options: "i" },
     });
     expect(mockProject).toHaveBeenCalledWith(MOVIE_PROJECTION);
-    expect(mockSort).toHaveBeenCalledWith({ "imdb.rating": -1 });
-    expect(movies[0]?.title).toBe("The Matrix");
+    expect(mockSort).toHaveBeenCalledWith({ title: -1 });
+    expect(result.movies[0]?.title).toBe("The Matrix");
+    expect(result.total).toBe(10);
   });
 });
