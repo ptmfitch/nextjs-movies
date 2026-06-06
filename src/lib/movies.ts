@@ -1,5 +1,6 @@
-import type { Filter } from "mongodb";
+import type { Document, Filter } from "mongodb";
 
+import { MOVIE_TITLE_SEARCH_INDEX } from "@/lib/db-indexes";
 import { getMongoCollectionName } from "@/lib/env";
 import {
   DEFAULT_MOVIE_SORT,
@@ -42,6 +43,19 @@ export const MOVIE_PROJECTION = {
   "imdb.rating": 1,
 } as const;
 
+const FLEXIBLE_TITLE_SEPARATOR_PATTERN = String.raw`[\s._:;,'"!?()[\]{}&+\-/\\]*`;
+
+export function buildFlexibleTitleRegex(query: string): string {
+  const compactQuery = query.trim().replace(/\s+/g, "");
+  if (!compactQuery) {
+    return "";
+  }
+
+  return [...compactQuery]
+    .map((character) => escapeRegex(character))
+    .join(FLEXIBLE_TITLE_SEPARATOR_PATTERN);
+}
+
 export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -50,7 +64,7 @@ export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
 
   return {
     ...POSTER_FILTER,
-    title: { $regex: escapeRegex(trimmed), $options: "i" },
+    title: { $regex: buildFlexibleTitleRegex(trimmed), $options: "i" },
   };
 }
 
@@ -102,6 +116,105 @@ async function queryMovies(
   };
 }
 
+function buildTitleSearchStage(query: string): Document {
+  return {
+    $search: {
+      index: MOVIE_TITLE_SEARCH_INDEX,
+      compound: {
+        should: [
+          {
+            text: {
+              query,
+              path: "title",
+              fuzzy: {
+                maxEdits: query.length <= 5 ? 1 : 2,
+                prefixLength: query.length <= 3 ? 0 : 1,
+                maxExpansions: 50,
+              },
+              score: { boost: { value: 5 } },
+            },
+          },
+          {
+            autocomplete: {
+              query,
+              path: "title",
+              tokenOrder: "sequential",
+              fuzzy: {
+                maxEdits: 1,
+                prefixLength: query.length <= 3 ? 0 : 1,
+                maxExpansions: 50,
+              },
+              score: { boost: { value: 2 } },
+            },
+          },
+        ],
+        minimumShouldMatch: 1,
+      },
+    },
+  };
+}
+
+function isAtlasSearchUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes("$search") ||
+    message.includes("Atlas Search") ||
+    message.includes("Search index") ||
+    message.includes("search index") ||
+    message.includes("not indexed as autocomplete") ||
+    message.includes("autocomplete index field definition") ||
+    message.includes("unrecognized pipeline stage name")
+  );
+}
+
+async function searchMoviesWithAtlasSearch(
+  query: string,
+  options: MoviesQueryOptions = {},
+): Promise<MoviesQueryResult | undefined> {
+  const { pageSize, sort, requestedPage } = resolveQueryOptions(options);
+  const db = await getDb();
+  const collection = db.collection<MovieDocument>(getMongoCollectionName());
+  const searchStage = buildTitleSearchStage(query);
+  const countPipeline = [searchStage, { $match: POSTER_FILTER }, { $count: "total" }];
+
+  try {
+    const [countResult] = await collection
+      .aggregate<{ total: number }>(countPipeline)
+      .toArray();
+    const total = countResult?.total ?? 0;
+    const page = clampMoviePage(requestedPage, total, pageSize);
+
+    if (total === 0) {
+      return { movies: [], total, page, pageSize };
+    }
+
+    const docs = (await collection
+      .aggregate<MovieDocument>([
+        searchStage,
+        { $match: POSTER_FILTER },
+        { $sort: buildMovieSort(sort) },
+        { $skip: (page - 1) * pageSize },
+        { $limit: pageSize },
+        { $project: MOVIE_PROJECTION },
+      ])
+      .toArray()) as MovieDocument[];
+
+    return {
+      movies: docs.map(serializeMovie),
+      total,
+      page,
+      pageSize,
+    };
+  } catch (error) {
+    if (isAtlasSearchUnavailableError(error)) {
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
 export async function listMovies(
   options: MoviesQueryOptions = {},
 ): Promise<MoviesQueryResult> {
@@ -112,9 +225,15 @@ export async function searchMoviesByTitle(
   query: string,
   options: MoviesQueryOptions = {},
 ): Promise<MoviesQueryResult> {
-  const filter = buildTitleSearchFilter(query);
+  const trimmed = query.trim();
+  const filter = buildTitleSearchFilter(trimmed);
   if (Object.keys(filter).length === 0) {
     return listMovies(options);
+  }
+
+  const atlasSearchResult = await searchMoviesWithAtlasSearch(trimmed, options);
+  if (atlasSearchResult && atlasSearchResult.total > 0) {
+    return atlasSearchResult;
   }
 
   return queryMovies(filter, options);

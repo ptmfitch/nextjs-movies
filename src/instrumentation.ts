@@ -18,9 +18,36 @@ export async function register() {
     );
   }
 
-  if (result.created.length === 0 && result.dropped.length === 0) {
+  if (result.searchCreated.length > 0) {
     console.info(
-      `[db] Movie indexes already up to date on ${result.collection} (${result.expected.join(", ")})`,
+      `[db] Created search indexes on ${result.collection}: ${result.searchCreated.join(", ")}`,
+    );
+  }
+
+  if (result.searchUpdated.length > 0) {
+    console.info(
+      `[db] Updated search indexes on ${result.collection}: ${result.searchUpdated.join(", ")}`,
+    );
+  }
+
+  if (result.searchSkippedReason) {
+    console.info(
+      `[db] Skipped search index sync on ${result.collection}: ${result.searchSkippedReason}`,
+    );
+  }
+
+  if (
+    result.created.length === 0 &&
+    result.dropped.length === 0 &&
+    result.searchCreated.length === 0 &&
+    result.searchUpdated.length === 0 &&
+    !result.searchSkippedReason
+  ) {
+    console.info(
+      `[db] Movie indexes already up to date on ${result.collection} (${[
+        ...result.expected,
+        ...result.searchExpected,
+      ].join(", ")})`,
     );
   }
 }
