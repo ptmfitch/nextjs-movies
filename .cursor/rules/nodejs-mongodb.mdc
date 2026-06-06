@@ -1,0 +1,44 @@
+---
+description: Node.js MongoDB patterns for data access and serialization
+globs: src/lib/**/*.ts, src/types/**/*.ts
+alwaysApply: false
+---
+
+# Node.js + MongoDB
+
+This project uses the official `mongodb` driver (not Mongoose) against the Atlas `sample_mflix` database.
+
+## Connection pattern
+
+- Reuse the cached client in `src/lib/mongodb.ts` via `global._mongoClientPromise`.
+- Read `MONGODB_URI` and database/collection names from `src/lib/env.ts` — never hardcode credentials.
+- Export `getDb()` for collection access; do not create a new `MongoClient` per request.
+
+## Query modules
+
+- Keep query logic in `src/lib/movies.ts` (or similar lib modules), not in React components.
+- Type collections with document interfaces from `src/types/movie.ts`.
+- Serialize MongoDB documents before passing to UI: convert `ObjectId` to string, normalize optional fields, and apply helpers like `normalizeYear`.
+
+## Query safety
+
+- Escape user input used in `$regex` filters (`escapeRegex` in `src/lib/regex.ts`).
+- Return empty results or safe defaults for blank search queries instead of throwing.
+- Use typed `Filter<Document>` from `mongodb` for query builders.
+
+## Error handling
+
+- Catch connection and query errors at the page or caller boundary.
+- Surface `Error.message` to the UI when appropriate; log details server-side only.
+- Do not leak connection strings or raw driver errors to the client.
+
+## Performance
+
+- Use `.limit()`, `.sort()`, and projection when listing or searching movies.
+- Prefer indexed fields (`title`, `year`, `imdb.rating`) for filters and sorts.
+- Avoid loading unbounded result sets.
+
+## Testing
+
+- Unit-test pure helpers (`buildTitleSearchFilter`, `normalizeYear`, `escapeRegex`) without a live database.
+- Mock `getDb` when testing modules that hit MongoDB.
