@@ -8,9 +8,11 @@ import {
 } from "@/lib/sync-indexes";
 
 const mockCreateIndexes = vi.fn();
+const mockDropIndex = vi.fn();
 const mockListIndexes = vi.fn();
 const mockCollection = vi.fn(() => ({
   createIndexes: mockCreateIndexes,
+  dropIndex: mockDropIndex,
   listIndexes: mockListIndexes,
 }));
 
@@ -27,9 +29,11 @@ describe("syncMovieIndexes", () => {
     vi.clearAllMocks();
     resetMovieIndexSyncState();
     mockCreateIndexes.mockResolvedValue([]);
+    mockDropIndex.mockResolvedValue(undefined);
     mockListIndexes.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([
         { name: "_id_" },
+        { name: "movies_poster_year_asc" },
         { name: "movies_poster_year_desc" },
       ]),
     });
@@ -38,25 +42,24 @@ describe("syncMovieIndexes", () => {
     } as never);
   });
 
-  it("creates named indexes from the manifest", async () => {
+  it("creates missing indexes and drops extras not in the manifest", async () => {
     const result = await syncMovieIndexes();
 
     expect(mockCollection).toHaveBeenCalledWith("movies");
     expect(mockCreateIndexes).toHaveBeenCalledWith(
       MOVIE_INDEXES.map(({ key, options }) => ({ key, ...options })),
     );
+    expect(mockDropIndex).toHaveBeenCalledWith("movies_poster_year_desc");
+    expect(mockDropIndex).not.toHaveBeenCalledWith("_id_");
     expect(result).toEqual({
       collection: "movies",
-      created: [
-        "movies_poster_year_asc",
-        "movies_poster_title_asc",
-        "movies_poster_title_desc",
-      ],
+      created: ["movies_poster_title_asc"],
+      dropped: ["movies_poster_year_desc"],
       expected: MOVIE_INDEXES.map((index) => index.options.name),
     });
   });
 
-  it("reports no created indexes when they already exist", async () => {
+  it("reports no changes when indexes already match the manifest", async () => {
     mockListIndexes.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([
         { name: "_id_" },
@@ -67,6 +70,8 @@ describe("syncMovieIndexes", () => {
     const result = await syncMovieIndexes();
 
     expect(result.created).toEqual([]);
+    expect(result.dropped).toEqual([]);
+    expect(mockDropIndex).not.toHaveBeenCalled();
   });
 
   it("reuses the same in-process sync result", async () => {
@@ -74,6 +79,7 @@ describe("syncMovieIndexes", () => {
     await syncMovieIndexes();
 
     expect(mockCreateIndexes).toHaveBeenCalledTimes(1);
+    expect(mockDropIndex).toHaveBeenCalledTimes(1);
   });
 
   it("retries after a failed sync", async () => {
@@ -81,16 +87,21 @@ describe("syncMovieIndexes", () => {
       .mockRejectedValueOnce(new Error("connection failed"))
       .mockResolvedValueOnce([]);
     mockListIndexes.mockReturnValue({
-      toArray: vi.fn().mockResolvedValue([{ name: "_id_" }]),
+      toArray: vi.fn().mockResolvedValue([
+        { name: "_id_" },
+        { name: "movies_poster_year_desc" },
+      ]),
     });
 
     await expect(syncMovieIndexes()).rejects.toThrow("connection failed");
     await expect(syncMovieIndexes()).resolves.toEqual({
       collection: "movies",
       created: MOVIE_INDEXES.map((index) => index.options.name),
+      dropped: ["movies_poster_year_desc"],
       expected: MOVIE_INDEXES.map((index) => index.options.name),
     });
 
     expect(mockCreateIndexes).toHaveBeenCalledTimes(2);
+    expect(mockDropIndex).toHaveBeenCalledTimes(1);
   });
 });

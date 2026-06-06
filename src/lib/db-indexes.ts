@@ -11,19 +11,11 @@ export interface MovieIndexDefinition {
  */
 export const MOVIE_INDEXES: MovieIndexDefinition[] = [
   {
-    key: { poster: 1, year: -1 },
-    options: { name: "movies_poster_year_desc" },
-  },
-  {
     key: { poster: 1, year: 1 },
     options: { name: "movies_poster_year_asc" },
   },
   {
     key: { poster: 1, title: 1 },
     options: { name: "movies_poster_title_asc" },
-  },
-  {
-    key: { poster: 1, title: -1 },
-    options: { name: "movies_poster_title_desc" },
   },
 ];

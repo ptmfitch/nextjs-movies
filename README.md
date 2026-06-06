@@ -58,7 +58,7 @@ npm run db:sync-indexes  # Ensure movie indexes exist (idempotent)
 
 ## Database indexes
 
-Index definitions live in `src/lib/db-indexes.ts` and are applied automatically when the server starts via `src/instrumentation.ts`. The sync is **idempotent**: `createIndexes()` only creates indexes that are missing or changed; reruns are safe.
+Index definitions live in `src/lib/db-indexes.ts` and are applied automatically when the server starts via `src/instrumentation.ts`. The sync is **idempotent**: it creates missing indexes and drops extras not in the manifest (`_id_` is preserved), so every environment ends up with the same set; reruns are safe.
 
 You can also sync manually:
 
