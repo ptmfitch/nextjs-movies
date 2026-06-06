@@ -28,7 +28,8 @@ Produce a prioritized report (High / Medium / Low impact + effort).
 
 Apply constraints from `.cursor/rules/nodejs-mongodb.mdc`:
 
-- Regex title search without indexes
+- Browse/sort indexes are defined in `src/lib/db-indexes.ts` and synced at startup
+- Regex title search still has no text index — compound indexes only cover poster + sort
 - Connection pooling via cached `getDb()`
 - Projection on large documents
 
