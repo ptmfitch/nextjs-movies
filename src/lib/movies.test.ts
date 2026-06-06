@@ -12,7 +12,7 @@ import { getDb } from "@/lib/mongodb";
 const mockToArray = vi.fn();
 const mockLimit = vi.fn(() => ({ toArray: mockToArray }));
 const mockSkip = vi.fn(() => ({ limit: mockLimit }));
-const mockSort = vi.fn(() => ({ skip: mockSkip }));
+const mockSort = vi.fn(() => ({ limit: mockLimit, skip: mockSkip }));
 const mockProject = vi.fn(() => ({ sort: mockSort }));
 const mockFind = vi.fn(() => ({ project: mockProject }));
 const mockCountDocuments = vi.fn();
@@ -38,8 +38,20 @@ describe("buildTitleSearchFilter", () => {
   it("builds a case-insensitive title regex filter with poster constraint", () => {
     expect(buildTitleSearchFilter("matrix")).toEqual({
       poster: { $exists: true, $ne: "" },
-      title: { $regex: "matrix", $options: "i" },
+      title: {
+        $regex:
+          "m[^A-Za-z0-9]*a[^A-Za-z0-9]*t[^A-Za-z0-9]*r[^A-Za-z0-9]*i[^A-Za-z0-9]*x",
+        $options: "i",
+      },
     });
+  });
+
+  it("allows search terms to match title separators", () => {
+    const filter = buildTitleSearchFilter("starwars");
+    const titleFilter = filter.title as { $regex: string; $options: string };
+
+    expect(new RegExp(titleFilter.$regex, titleFilter.$options).test("Star Wars"))
+      .toBe(true);
   });
 
   it("escapes regex characters in the query", () => {
@@ -145,11 +157,71 @@ describe("searchMoviesByTitle", () => {
 
     expect(mockFind).toHaveBeenCalledWith({
       poster: { $exists: true, $ne: "" },
-      title: { $regex: "matrix", $options: "i" },
+      title: {
+        $regex:
+          "m[^A-Za-z0-9]*a[^A-Za-z0-9]*t[^A-Za-z0-9]*r[^A-Za-z0-9]*i[^A-Za-z0-9]*x",
+        $options: "i",
+      },
     });
     expect(mockProject).toHaveBeenCalledWith(MOVIE_PROJECTION);
     expect(mockSort).toHaveBeenCalledWith({ title: -1 });
     expect(result.movies[0]?.title).toBe("The Matrix");
     expect(result.total).toBe(10);
+  });
+
+  it("falls back to fuzzy title matching when exact search has no results", async () => {
+    mockCountDocuments.mockResolvedValue(0);
+    mockToArray
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          _id: { toString: () => "def456" },
+          title: "The Matrix",
+          year: 1999,
+          imdb: { rating: 8.7 },
+        },
+        {
+          _id: { toString: () => "ghi789" },
+          title: "Titanic",
+          year: 1997,
+          imdb: { rating: 7.9 },
+        },
+      ]);
+
+    const result = await searchMoviesByTitle("matrx", {
+      pageSize: 12,
+      sort: "title-asc",
+    });
+
+    expect(mockFind).toHaveBeenNthCalledWith(1, {
+      poster: { $exists: true, $ne: "" },
+      title: {
+        $regex:
+          "m[^A-Za-z0-9]*a[^A-Za-z0-9]*t[^A-Za-z0-9]*r[^A-Za-z0-9]*x",
+        $options: "i",
+      },
+    });
+    expect(mockFind).toHaveBeenNthCalledWith(2, {
+      poster: { $exists: true, $ne: "" },
+      $or: [
+        {
+          title: {
+            $regex: "m[^A-Za-z0-9]*a[^A-Za-z0-9]*t",
+            $options: "i",
+          },
+        },
+        {
+          title: {
+            $regex: "t[^A-Za-z0-9]*r[^A-Za-z0-9]*x",
+            $options: "i",
+          },
+        },
+      ],
+    });
+    expect(mockSort).toHaveBeenLastCalledWith({ title: 1 });
+    expect(mockLimit).toHaveBeenLastCalledWith(2000);
+    expect(result.movies).toHaveLength(1);
+    expect(result.movies[0]?.title).toBe("The Matrix");
+    expect(result.total).toBe(1);
   });
 });
