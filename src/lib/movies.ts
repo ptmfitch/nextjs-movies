@@ -6,6 +6,20 @@ import { normalizeYear } from "@/lib/normalize";
 import { escapeRegex } from "@/lib/regex";
 import type { Movie, MovieDocument } from "@/types/movie";
 
+export const POSTER_FILTER = {
+  poster: { $exists: true, $ne: "" },
+} as const;
+
+export const MOVIE_PROJECTION = {
+  title: 1,
+  year: 1,
+  runtime: 1,
+  genres: 1,
+  cast: 1,
+  poster: 1,
+  "imdb.rating": 1,
+} as const;
+
 export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -13,6 +27,7 @@ export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
   }
 
   return {
+    ...POSTER_FILTER,
     title: { $regex: escapeRegex(trimmed), $options: "i" },
   };
 }
@@ -20,42 +35,25 @@ export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
 function serializeMovie(doc: MovieDocument): Movie {
   return {
     _id: doc._id.toString(),
-    plot: doc.plot ?? "",
-    genres: doc.genres ?? [],
+    title: doc.title ?? "Untitled",
+    year: normalizeYear(doc.year),
     runtime: doc.runtime ?? 0,
+    genres: doc.genres ?? [],
     cast: doc.cast ?? [],
     poster: doc.poster ?? "",
-    title: doc.title ?? "Untitled",
-    fullplot: doc.fullplot,
-    languages: doc.languages ?? [],
-    released: doc.released ?? new Date(0),
-    directors: doc.directors ?? [],
-    rated: doc.rated ?? "",
-    awards: doc.awards ?? { wins: 0, nominations: 0, text: "" },
-    lastupdated: doc.lastupdated ?? "",
-    year: normalizeYear(doc.year),
-    imdb: doc.imdb ?? { rating: 0, votes: 0, id: 0 },
-    countries: doc.countries ?? [],
-    type: doc.type ?? "",
-    tomatoes: doc.tomatoes ?? {
-      viewer: { rating: 0, numReviews: 0, meter: 0 },
-      fresh: 0,
-      critic: { rating: 0, numReviews: 0, meter: 0 },
-      rotten: 0,
-      lastUpdated: new Date(0),
-    },
-    num_mflix_comments: doc.num_mflix_comments ?? 0,
+    imdb: { rating: doc.imdb?.rating ?? 0 },
   };
 }
 
 export async function listMovies(limit = 24): Promise<Movie[]> {
   const db = await getDb();
-  const docs = await db
+  const docs = (await db
     .collection<MovieDocument>(getMongoCollectionName())
-    .find({ poster: { $exists: true, $ne: "" } })
+    .find(POSTER_FILTER)
+    .project(MOVIE_PROJECTION)
     .sort({ year: -1 })
     .limit(limit)
-    .toArray();
+    .toArray()) as MovieDocument[];
 
   return docs.map(serializeMovie);
 }
@@ -70,12 +68,13 @@ export async function searchMoviesByTitle(
   }
 
   const db = await getDb();
-  const docs = await db
+  const docs = (await db
     .collection<MovieDocument>(getMongoCollectionName())
     .find(filter)
+    .project(MOVIE_PROJECTION)
     .sort({ "imdb.rating": -1 })
     .limit(limit)
-    .toArray();
+    .toArray()) as MovieDocument[];
 
   return docs.map(serializeMovie);
 }
