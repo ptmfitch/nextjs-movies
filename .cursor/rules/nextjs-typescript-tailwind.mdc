@@ -23,7 +23,9 @@ alwaysApply: false
 ## Tailwind v4
 
 - Theme in `src/app/globals.css` (`@import "tailwindcss"`, `@theme inline`).
-- Palette: `bg-zinc-950`, `text-zinc-100`, accents `text-amber-400`.
+- Use semantic tokens (`bg-background`, `text-foreground`, `text-heading`, `bg-surface`, `border-border`, `text-muted`, `text-accent`, etc.) — not hardcoded `zinc-*` / `amber-*`.
+- Light/dark via `next-themes` (`ThemeProvider` in `layout.tsx`, `.dark` class on `<html>`); default theme is light.
+- Token definitions live in `:root` and `.dark` in `globals.css`; keep light/dark pairs in sync when adding colors.
 - Responsive breakpoints: `sm:`, `md:`, `lg:`.
 - Fonts via `next/font` in `layout.tsx` (`--font-geist-sans`).
 

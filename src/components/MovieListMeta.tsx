@@ -13,8 +13,8 @@ export function MovieListMeta({ start, end, total, query }: MovieListMetaProps) 
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-white">{heading}</h2>
-      <p className="mt-1 text-sm text-zinc-500">{rangeText}</p>
+      <h2 className="text-xl font-semibold text-heading">{heading}</h2>
+      <p className="mt-1 text-sm text-muted">{rangeText}</p>
     </div>
   );
 }

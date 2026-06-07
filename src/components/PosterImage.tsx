@@ -12,11 +12,11 @@ export function PosterImage({ src, alt }: PosterImageProps) {
 
   if (failed) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 bg-zinc-800 px-4 text-center">
-        <span className="text-3xl text-zinc-600" aria-hidden="true">
+      <div className="flex h-full flex-col items-center justify-center gap-2 bg-surface-muted px-4 text-center">
+        <span className="text-3xl text-disabled" aria-hidden="true">
           🎬
         </span>
-        <p className="text-sm text-zinc-500">Poster unavailable</p>
+        <p className="text-sm text-muted">Poster unavailable</p>
       </div>
     );
   }

@@ -42,11 +42,11 @@ export function SearchBar() {
         value={query}
         onChange={(event) => setDraft(event.target.value)}
         placeholder="Search by title..."
-        className="flex-1 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-base text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+        className="flex-1 rounded-xl border border-border-strong bg-surface px-4 py-3 text-base text-foreground placeholder:text-muted outline-none transition focus:border-accent focus:ring-2 focus:ring-ring"
       />
       <button
         type="submit"
-        className="rounded-xl bg-amber-400 px-5 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-amber-300"
+        className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground transition hover:bg-accent-hover"
       >
         Search
       </button>
@@ -54,7 +54,7 @@ export function SearchBar() {
         <button
           type="button"
           onClick={handleClear}
-          className="rounded-xl border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+          className="rounded-xl border border-border-strong px-4 py-3 text-sm font-medium text-secondary transition hover:border-muted hover:text-foreground"
         >
           Clear
         </button>

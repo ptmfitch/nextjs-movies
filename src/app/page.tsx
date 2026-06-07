@@ -5,6 +5,7 @@ import { MovieListMeta } from "@/components/MovieListMeta";
 import { Pagination } from "@/components/Pagination";
 import { SearchBar } from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   MOVIES_PAGE_SIZE,
   buildMoviesRange,
@@ -54,23 +55,26 @@ export default async function Home({ searchParams }: HomeProps) {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-10">
-          <div>
-            <p className="text-sm font-medium tracking-[0.2em] text-amber-400">
-              Nextjs-Movies
-            </p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              Movie Browser
-            </h1>
-            <p className="mt-3 max-w-2xl text-base text-zinc-400">
-              Browse movie posters and search by title.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium tracking-[0.2em] text-accent">
+                Nextjs-Movies
+              </p>
+              <h1 className="mt-2 text-4xl font-bold tracking-tight text-heading sm:text-5xl">
+                Movie Browser
+              </h1>
+              <p className="mt-3 max-w-2xl text-base text-muted">
+                Browse movie posters and search by title.
+              </p>
+            </div>
+            <ThemeToggle />
           </div>
           <Suspense
             fallback={
-              <div className="h-12 w-full max-w-2xl animate-pulse rounded-xl bg-zinc-800" />
+              <div className="h-12 w-full max-w-2xl animate-pulse rounded-xl bg-surface-muted" />
             }
           >
             <SearchBar />
@@ -80,15 +84,15 @@ export default async function Home({ searchParams }: HomeProps) {
 
       <main className="mx-auto w-full max-w-7xl px-6 py-10">
         {errorMessage ? (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-6 py-8">
-            <h2 className="text-lg font-semibold text-red-200">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-6 py-8">
+            <h2 className="text-lg font-semibold text-destructive">
               Database connection error
             </h2>
-            <p className="mt-2 text-sm text-red-100/80">{errorMessage}</p>
-            <p className="mt-4 text-sm text-zinc-400">
-              Copy <code className="text-zinc-200">.env.local.example</code> to{" "}
-              <code className="text-zinc-200">.env.local</code> and set{" "}
-              <code className="text-zinc-200">MONGODB_URI</code>.
+            <p className="mt-2 text-sm text-destructive-muted">{errorMessage}</p>
+            <p className="mt-4 text-sm text-muted">
+              Copy <code className="text-secondary">.env.local.example</code> to{" "}
+              <code className="text-secondary">.env.local</code> and set{" "}
+              <code className="text-secondary">MONGODB_URI</code>.
             </p>
           </div>
         ) : (
@@ -102,7 +106,7 @@ export default async function Home({ searchParams }: HomeProps) {
               />
               <Suspense
                 fallback={
-                  <div className="h-11 w-48 animate-pulse rounded-xl bg-zinc-800" />
+                  <div className="h-11 w-48 animate-pulse rounded-xl bg-surface-muted" />
                 }
               >
                 <SortSelect />

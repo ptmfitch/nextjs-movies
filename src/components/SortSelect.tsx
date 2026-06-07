@@ -30,14 +30,14 @@ export function SortSelect() {
 
   return (
     <div className="flex items-center gap-3">
-      <label htmlFor="movie-sort" className="text-sm font-medium text-zinc-400">
+      <label htmlFor="movie-sort" className="text-sm font-medium text-muted">
         Sort by
       </label>
       <select
         id="movie-sort"
         value={sort}
         onChange={handleChange}
-        className="rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm text-zinc-100 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30"
+        className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-accent focus:ring-2 focus:ring-ring"
       >
         {SORT_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>

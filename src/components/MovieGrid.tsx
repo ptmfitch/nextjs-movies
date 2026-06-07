@@ -9,9 +9,9 @@ interface MovieGridProps {
 export function MovieGrid({ movies, query }: MovieGridProps) {
   if (movies.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 px-6 py-16 text-center">
-        <p className="text-lg font-medium text-zinc-200">No movies found</p>
-        <p className="mt-2 text-sm text-zinc-500">
+      <div className="rounded-2xl border border-dashed border-border-strong bg-surface/40 px-6 py-16 text-center">
+        <p className="text-lg font-medium text-secondary">No movies found</p>
+        <p className="mt-2 text-sm text-muted">
           {query
             ? `No titles matched "${query}". Try another search.`
             : "No movies are available to display right now."}
