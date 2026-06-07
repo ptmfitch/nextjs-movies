@@ -131,6 +131,50 @@ describe("syncMovieIndexes", () => {
     expect(result.searchUpdated).toEqual([MOVIE_SEARCH_INDEX.name]);
   });
 
+  it("updates the Atlas Search index when the analyzer definition is stale", async () => {
+    mockListSearchIndexes.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([
+        {
+          name: MOVIE_SEARCH_INDEX.name,
+          latestDefinition: {
+            ...MOVIE_SEARCH_INDEX.definition,
+            analyzers: [
+              {
+                name: "compactKeyword",
+                charFilters: [
+                  {
+                    type: "mapping",
+                    mappings: {
+                      " ": "",
+                    },
+                  },
+                ],
+                tokenizer: {
+                  type: "keyword",
+                },
+                tokenFilters: [
+                  {
+                    type: "lowercase",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ]),
+    });
+
+    const result = await syncMovieIndexes();
+
+    expect(mockCreateSearchIndex).not.toHaveBeenCalled();
+    expect(mockUpdateSearchIndex).toHaveBeenCalledWith(
+      MOVIE_SEARCH_INDEX.name,
+      MOVIE_SEARCH_INDEX.definition,
+    );
+    expect(result.searchCreated).toEqual([]);
+    expect(result.searchUpdated).toEqual([MOVIE_SEARCH_INDEX.name]);
+  });
+
   it("reuses the same in-process sync result", async () => {
     await syncMovieIndexes();
     await syncMovieIndexes();

@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+
 import { MOVIE_INDEXES, MOVIE_SEARCH_INDEX } from "@/lib/db-indexes";
 import { getMongoCollectionName } from "@/lib/env";
 import { getDb } from "@/lib/mongodb";
@@ -54,7 +56,11 @@ function hasExpectedMovieSearchDefinition(searchIndex: Document): boolean {
     title?.type === "string" &&
     title.analyzer === "lucene.standard" &&
     title.multi?.keyword?.type === "string" &&
-    title.multi.keyword.analyzer === "compactKeyword"
+    title.multi.keyword.analyzer === "compactKeyword" &&
+    isDeepStrictEqual(
+      definition.analyzers,
+      MOVIE_SEARCH_INDEX.definition?.analyzers,
+    )
   );
 }
 
