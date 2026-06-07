@@ -64,16 +64,17 @@ describe("buildTitleSearchStage", () => {
                 query: "matrix",
                 path: "title",
                 fuzzy: {
-                  maxEdits: 2,
+                  maxEdits: 1,
                   prefixLength: 1,
                   maxExpansions: 50,
                 },
+                matchCriteria: "all",
                 score: { boost: { value: 8 } },
               },
             },
             {
               wildcard: {
-                query: "*m*a*t*r*i*x*",
+                query: "*matrix*",
                 path: { value: "title", multi: "keyword" },
                 allowAnalyzedField: true,
                 score: { boost: { value: 4 } },
@@ -91,7 +92,7 @@ describe("buildTitleSearchStage", () => {
 
     expect(stage?.$search.compound.should).toContainEqual({
       wildcard: {
-        query: "*s*t*a*r*w*a*r*s*",
+        query: "*starwars*",
         path: { value: "title", multi: "keyword" },
         allowAnalyzedField: true,
         score: { boost: { value: 4 } },

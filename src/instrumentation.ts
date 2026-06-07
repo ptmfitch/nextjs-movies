@@ -24,6 +24,12 @@ export async function register() {
     );
   }
 
+  if (result.searchUpdated.length > 0) {
+    console.info(
+      `[db] Updated Atlas Search indexes on ${result.collection}: ${result.searchUpdated.join(", ")}`,
+    );
+  }
+
   if (result.searchSkipped) {
     console.warn(
       `[db] Skipped Atlas Search index sync on ${result.collection}: ${result.searchSkipped}`,
@@ -34,6 +40,7 @@ export async function register() {
     result.created.length === 0 &&
     result.dropped.length === 0 &&
     result.searchCreated.length === 0 &&
+    result.searchUpdated.length === 0 &&
     !result.searchSkipped
   ) {
     console.info(

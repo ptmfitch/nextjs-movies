@@ -11,6 +11,7 @@ export interface SyncMovieIndexesResult {
   searchCreated: string[];
   searchExpected: string[];
   searchSkipped?: string;
+  searchUpdated: string[];
 }
 
 const PRESERVED_INDEX_NAMES = new Set(["_id_"]);
@@ -38,9 +39,33 @@ function isSearchIndexUnsupportedError(error: unknown): boolean {
   );
 }
 
+function hasExpectedMovieSearchDefinition(searchIndex: Document): boolean {
+  const definition = searchIndex.latestDefinition ?? searchIndex.definition;
+  const fields = definition?.mappings?.fields;
+  const poster = fields?.poster;
+  const title = fields?.title;
+
+  if (!definition || Array.isArray(title)) {
+    return false;
+  }
+
+  return (
+    poster?.type === "string" &&
+    title?.type === "string" &&
+    title.analyzer === "lucene.standard" &&
+    title.multi?.keyword?.type === "string" &&
+    title.multi.keyword.analyzer === "compactKeyword"
+  );
+}
+
 async function syncAtlasSearchIndex(
   collection: Collection<Document>,
-): Promise<Pick<SyncMovieIndexesResult, "searchCreated" | "searchSkipped">> {
+): Promise<
+  Pick<
+    SyncMovieIndexesResult,
+    "searchCreated" | "searchSkipped" | "searchUpdated"
+  >
+> {
   try {
     const existingSearchIndexes = await collection
       .listSearchIndexes(MOVIE_SEARCH_INDEX.name)
@@ -48,13 +73,31 @@ async function syncAtlasSearchIndex(
 
     if (existingSearchIndexes.length === 0) {
       await collection.createSearchIndex(MOVIE_SEARCH_INDEX);
-      return { searchCreated: [MOVIE_SEARCH_INDEX.name] };
+      return {
+        searchCreated: [MOVIE_SEARCH_INDEX.name],
+        searchUpdated: [],
+      };
     }
 
-    return { searchCreated: [] };
+    if (!hasExpectedMovieSearchDefinition(existingSearchIndexes[0])) {
+      await collection.updateSearchIndex(
+        MOVIE_SEARCH_INDEX.name,
+        MOVIE_SEARCH_INDEX.definition,
+      );
+      return {
+        searchCreated: [],
+        searchUpdated: [MOVIE_SEARCH_INDEX.name],
+      };
+    }
+
+    return { searchCreated: [], searchUpdated: [] };
   } catch (error) {
     if (isSearchIndexUnsupportedError(error)) {
-      return { searchCreated: [], searchSkipped: getErrorMessage(error) };
+      return {
+        searchCreated: [],
+        searchUpdated: [],
+        searchSkipped: getErrorMessage(error),
+      };
     }
 
     throw error;
@@ -96,6 +139,7 @@ async function runSync(): Promise<SyncMovieIndexesResult> {
     searchCreated: searchResult.searchCreated,
     searchExpected: [MOVIE_SEARCH_INDEX.name],
     searchSkipped: searchResult.searchSkipped,
+    searchUpdated: searchResult.searchUpdated,
   };
 }
 

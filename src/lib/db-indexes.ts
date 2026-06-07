@@ -30,8 +30,9 @@ export const MOVIE_SEARCH_INDEX_NAME = "movies_title_search";
  * Atlas Search index for title search in movies.ts.
  *
  * The primary title mapping supports normal tokenized and fuzzy title search.
- * The keyword multi-analyzer keeps the whole title as one lower-cased token so
- * Lucene wildcard queries can bridge separators, e.g. "starwars" -> "Star Wars".
+ * The keyword multi-analyzer removes common separators and lower-cases the whole
+ * title so Lucene wildcard queries can bridge separators, e.g. "starwars" ->
+ * "Star Wars".
  */
 export const MOVIE_SEARCH_INDEX: SearchIndexDescription & { name: string } = {
   name: MOVIE_SEARCH_INDEX_NAME,
@@ -39,8 +40,33 @@ export const MOVIE_SEARCH_INDEX: SearchIndexDescription & { name: string } = {
   definition: {
     analyzers: [
       {
-        name: "caseInsensitiveKeyword",
-        charFilters: [],
+        name: "compactKeyword",
+        charFilters: [
+          {
+            type: "mapping",
+            mappings: {
+              " ": "",
+              "\t": "",
+              "\n": "",
+              "-": "",
+              "_": "",
+              ":": "",
+              ";": "",
+              ".": "",
+              ",": "",
+              "'": "",
+              '"': "",
+              "(": "",
+              ")": "",
+              "[": "",
+              "]": "",
+              "{": "",
+              "}": "",
+              "/": "",
+              "\\": "",
+            },
+          },
+        ],
         tokenizer: {
           type: "keyword",
         },
@@ -64,7 +90,7 @@ export const MOVIE_SEARCH_INDEX: SearchIndexDescription & { name: string } = {
           multi: {
             keyword: {
               type: "string",
-              analyzer: "caseInsensitiveKeyword",
+              analyzer: "compactKeyword",
             },
           },
         },

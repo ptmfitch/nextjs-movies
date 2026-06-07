@@ -49,7 +49,7 @@ function buildCompactWildcardQuery(query: string): string | null {
     return null;
   }
 
-  return `*${Array.from(compact).join("*")}*`;
+  return `*${compact}*`;
 }
 
 export function buildTitleSearchStage(query: string): Document | null {
@@ -72,10 +72,11 @@ export function buildTitleSearchStage(query: string): Document | null {
         query: trimmed,
         path: "title",
         fuzzy: {
-          maxEdits: 2,
+          maxEdits: 1,
           prefixLength: 1,
           maxExpansions: 50,
         },
+        matchCriteria: "all",
         score: { boost: { value: 8 } },
       },
     },

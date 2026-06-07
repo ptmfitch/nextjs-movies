@@ -12,12 +12,14 @@ const mockCreateSearchIndex = vi.fn();
 const mockDropIndex = vi.fn();
 const mockListIndexes = vi.fn();
 const mockListSearchIndexes = vi.fn();
+const mockUpdateSearchIndex = vi.fn();
 const mockCollection = vi.fn(() => ({
   createIndexes: mockCreateIndexes,
   createSearchIndex: mockCreateSearchIndex,
   dropIndex: mockDropIndex,
   listIndexes: mockListIndexes,
   listSearchIndexes: mockListSearchIndexes,
+  updateSearchIndex: mockUpdateSearchIndex,
 }));
 
 vi.mock("@/lib/mongodb", () => ({
@@ -35,6 +37,7 @@ describe("syncMovieIndexes", () => {
     mockCreateIndexes.mockResolvedValue([]);
     mockCreateSearchIndex.mockResolvedValue(MOVIE_SEARCH_INDEX.name);
     mockDropIndex.mockResolvedValue(undefined);
+    mockUpdateSearchIndex.mockResolvedValue(undefined);
     mockListIndexes.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([
         { name: "_id_" },
@@ -69,6 +72,7 @@ describe("syncMovieIndexes", () => {
       searchCreated: [MOVIE_SEARCH_INDEX.name],
       searchExpected: [MOVIE_SEARCH_INDEX.name],
       searchSkipped: undefined,
+      searchUpdated: [],
     });
   });
 
@@ -80,7 +84,12 @@ describe("syncMovieIndexes", () => {
       ]),
     });
     mockListSearchIndexes.mockReturnValue({
-      toArray: vi.fn().mockResolvedValue([{ name: MOVIE_SEARCH_INDEX.name }]),
+      toArray: vi.fn().mockResolvedValue([
+        {
+          name: MOVIE_SEARCH_INDEX.name,
+          latestDefinition: MOVIE_SEARCH_INDEX.definition,
+        },
+      ]),
     });
 
     const result = await syncMovieIndexes();
@@ -88,8 +97,38 @@ describe("syncMovieIndexes", () => {
     expect(result.created).toEqual([]);
     expect(result.dropped).toEqual([]);
     expect(result.searchCreated).toEqual([]);
+    expect(result.searchUpdated).toEqual([]);
     expect(mockDropIndex).not.toHaveBeenCalled();
     expect(mockCreateSearchIndex).not.toHaveBeenCalled();
+    expect(mockUpdateSearchIndex).not.toHaveBeenCalled();
+  });
+
+  it("updates the Atlas Search index when the existing definition is stale", async () => {
+    mockListSearchIndexes.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([
+        {
+          name: MOVIE_SEARCH_INDEX.name,
+          latestDefinition: {
+            mappings: {
+              dynamic: false,
+              fields: {
+                title: [{ type: "string" }],
+              },
+            },
+          },
+        },
+      ]),
+    });
+
+    const result = await syncMovieIndexes();
+
+    expect(mockCreateSearchIndex).not.toHaveBeenCalled();
+    expect(mockUpdateSearchIndex).toHaveBeenCalledWith(
+      MOVIE_SEARCH_INDEX.name,
+      MOVIE_SEARCH_INDEX.definition,
+    );
+    expect(result.searchCreated).toEqual([]);
+    expect(result.searchUpdated).toEqual([MOVIE_SEARCH_INDEX.name]);
   });
 
   it("reuses the same in-process sync result", async () => {
@@ -98,6 +137,7 @@ describe("syncMovieIndexes", () => {
 
     expect(mockCreateIndexes).toHaveBeenCalledTimes(1);
     expect(mockCreateSearchIndex).toHaveBeenCalledTimes(1);
+    expect(mockUpdateSearchIndex).not.toHaveBeenCalled();
     expect(mockDropIndex).toHaveBeenCalledTimes(1);
   });
 
@@ -121,6 +161,7 @@ describe("syncMovieIndexes", () => {
       searchCreated: [MOVIE_SEARCH_INDEX.name],
       searchExpected: [MOVIE_SEARCH_INDEX.name],
       searchSkipped: undefined,
+      searchUpdated: [],
     });
 
     expect(mockCreateIndexes).toHaveBeenCalledTimes(2);
@@ -141,6 +182,8 @@ describe("syncMovieIndexes", () => {
     expect(result.searchCreated).toEqual([]);
     expect(result.searchExpected).toEqual([MOVIE_SEARCH_INDEX.name]);
     expect(result.searchSkipped).toBe("command not found: listSearchIndexes");
+    expect(result.searchUpdated).toEqual([]);
     expect(mockCreateSearchIndex).not.toHaveBeenCalled();
+    expect(mockUpdateSearchIndex).not.toHaveBeenCalled();
   });
 });
