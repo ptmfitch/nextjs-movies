@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MOVIE_INDEXES } from "@/lib/db-indexes";
+import { MOVIE_INDEXES, MOVIE_SEARCH_INDEX } from "@/lib/db-indexes";
 import { getDb } from "@/lib/mongodb";
 import {
   resetMovieIndexSyncState,
@@ -8,12 +8,16 @@ import {
 } from "@/lib/sync-indexes";
 
 const mockCreateIndexes = vi.fn();
+const mockCreateSearchIndex = vi.fn();
 const mockDropIndex = vi.fn();
 const mockListIndexes = vi.fn();
+const mockListSearchIndexes = vi.fn();
 const mockCollection = vi.fn(() => ({
   createIndexes: mockCreateIndexes,
+  createSearchIndex: mockCreateSearchIndex,
   dropIndex: mockDropIndex,
   listIndexes: mockListIndexes,
+  listSearchIndexes: mockListSearchIndexes,
 }));
 
 vi.mock("@/lib/mongodb", () => ({
@@ -29,6 +33,7 @@ describe("syncMovieIndexes", () => {
     vi.clearAllMocks();
     resetMovieIndexSyncState();
     mockCreateIndexes.mockResolvedValue([]);
+    mockCreateSearchIndex.mockResolvedValue(MOVIE_SEARCH_INDEX.name);
     mockDropIndex.mockResolvedValue(undefined);
     mockListIndexes.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([
@@ -36,6 +41,9 @@ describe("syncMovieIndexes", () => {
         { name: "movies_poster_year_asc" },
         { name: "movies_poster_year_desc" },
       ]),
+    });
+    mockListSearchIndexes.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([]),
     });
     vi.mocked(getDb).mockResolvedValue({
       collection: mockCollection,
@@ -51,11 +59,16 @@ describe("syncMovieIndexes", () => {
     );
     expect(mockDropIndex).toHaveBeenCalledWith("movies_poster_year_desc");
     expect(mockDropIndex).not.toHaveBeenCalledWith("_id_");
+    expect(mockListSearchIndexes).toHaveBeenCalledWith(MOVIE_SEARCH_INDEX.name);
+    expect(mockCreateSearchIndex).toHaveBeenCalledWith(MOVIE_SEARCH_INDEX);
     expect(result).toEqual({
       collection: "movies",
       created: ["movies_poster_title_asc"],
       dropped: ["movies_poster_year_desc"],
       expected: MOVIE_INDEXES.map((index) => index.options.name),
+      searchCreated: [MOVIE_SEARCH_INDEX.name],
+      searchExpected: [MOVIE_SEARCH_INDEX.name],
+      searchSkipped: undefined,
     });
   });
 
@@ -66,12 +79,17 @@ describe("syncMovieIndexes", () => {
         ...MOVIE_INDEXES.map((index) => ({ name: index.options.name })),
       ]),
     });
+    mockListSearchIndexes.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([{ name: MOVIE_SEARCH_INDEX.name }]),
+    });
 
     const result = await syncMovieIndexes();
 
     expect(result.created).toEqual([]);
     expect(result.dropped).toEqual([]);
+    expect(result.searchCreated).toEqual([]);
     expect(mockDropIndex).not.toHaveBeenCalled();
+    expect(mockCreateSearchIndex).not.toHaveBeenCalled();
   });
 
   it("reuses the same in-process sync result", async () => {
@@ -79,6 +97,7 @@ describe("syncMovieIndexes", () => {
     await syncMovieIndexes();
 
     expect(mockCreateIndexes).toHaveBeenCalledTimes(1);
+    expect(mockCreateSearchIndex).toHaveBeenCalledTimes(1);
     expect(mockDropIndex).toHaveBeenCalledTimes(1);
   });
 
@@ -99,9 +118,29 @@ describe("syncMovieIndexes", () => {
       created: MOVIE_INDEXES.map((index) => index.options.name),
       dropped: ["movies_poster_year_desc"],
       expected: MOVIE_INDEXES.map((index) => index.options.name),
+      searchCreated: [MOVIE_SEARCH_INDEX.name],
+      searchExpected: [MOVIE_SEARCH_INDEX.name],
+      searchSkipped: undefined,
     });
 
     expect(mockCreateIndexes).toHaveBeenCalledTimes(2);
     expect(mockDropIndex).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips Atlas Search index sync when search commands are unavailable", async () => {
+    mockListSearchIndexes.mockImplementation(() => {
+      const error = new Error("command not found: listSearchIndexes") as Error & {
+        codeName: string;
+      };
+      error.codeName = "CommandNotFound";
+      throw error;
+    });
+
+    const result = await syncMovieIndexes();
+
+    expect(result.searchCreated).toEqual([]);
+    expect(result.searchExpected).toEqual([MOVIE_SEARCH_INDEX.name]);
+    expect(result.searchSkipped).toBe("command not found: listSearchIndexes");
+    expect(mockCreateSearchIndex).not.toHaveBeenCalled();
   });
 });

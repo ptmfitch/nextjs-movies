@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MOVIE_PROJECTION,
   POSTER_FILTER,
-  buildTitleSearchFilter,
+  buildTitleSearchStage,
   listMovies,
   searchMoviesByTitle,
 } from "@/lib/movies";
 import { getDb } from "@/lib/mongodb";
 
+const mockAggregateToArray = vi.fn();
+const mockAggregate = vi.fn(() => ({ toArray: mockAggregateToArray }));
 const mockToArray = vi.fn();
 const mockLimit = vi.fn(() => ({ toArray: mockToArray }));
 const mockSkip = vi.fn(() => ({ limit: mockLimit }));
@@ -17,6 +19,7 @@ const mockProject = vi.fn(() => ({ sort: mockSort }));
 const mockFind = vi.fn(() => ({ project: mockProject }));
 const mockCountDocuments = vi.fn();
 const mockCollection = vi.fn(() => ({
+  aggregate: mockAggregate,
   find: mockFind,
   countDocuments: mockCountDocuments,
 }));
@@ -29,23 +32,70 @@ vi.mock("@/lib/env", () => ({
   getMongoCollectionName: () => "movies",
 }));
 
-describe("buildTitleSearchFilter", () => {
-  it("returns an empty filter for blank queries", () => {
-    expect(buildTitleSearchFilter("")).toEqual({});
-    expect(buildTitleSearchFilter("   ")).toEqual({});
+describe("buildTitleSearchStage", () => {
+  it("returns null for blank queries", () => {
+    expect(buildTitleSearchStage("")).toBeNull();
+    expect(buildTitleSearchStage("   ")).toBeNull();
   });
 
-  it("builds a case-insensitive title regex filter with poster constraint", () => {
-    expect(buildTitleSearchFilter("matrix")).toEqual({
-      poster: { $exists: true, $ne: "" },
-      title: { $regex: "matrix", $options: "i" },
+  it("builds a fuzzy Atlas Search stage with poster existence filtering", () => {
+    expect(buildTitleSearchStage("matrix")).toEqual({
+      $search: {
+        index: "movies_title_search",
+        compound: {
+          filter: [
+            {
+              exists: {
+                path: "poster",
+              },
+            },
+          ],
+          should: [
+            {
+              phrase: {
+                query: "matrix",
+                path: "title",
+                slop: 1,
+                score: { boost: { value: 12 } },
+              },
+            },
+            {
+              text: {
+                query: "matrix",
+                path: "title",
+                fuzzy: {
+                  maxEdits: 2,
+                  prefixLength: 1,
+                  maxExpansions: 50,
+                },
+                score: { boost: { value: 8 } },
+              },
+            },
+            {
+              wildcard: {
+                query: "*m*a*t*r*i*x*",
+                path: { value: "title", multi: "keyword" },
+                allowAnalyzedField: true,
+                score: { boost: { value: 4 } },
+              },
+            },
+          ],
+          minimumShouldMatch: 1,
+        },
+      },
     });
   });
 
-  it("escapes regex characters in the query", () => {
-    expect(buildTitleSearchFilter("C++")).toEqual({
-      poster: { $exists: true, $ne: "" },
-      title: { $regex: "C\\+\\+", $options: "i" },
+  it("compacts separators so starwars can match Star Wars titles", () => {
+    const stage = buildTitleSearchStage("star wars");
+
+    expect(stage?.$search.compound.should).toContainEqual({
+      wildcard: {
+        query: "*s*t*a*r*w*a*r*s*",
+        path: { value: "title", multi: "keyword" },
+        allowAnalyzedField: true,
+        score: { boost: { value: 4 } },
+      },
     });
   });
 });
@@ -53,6 +103,7 @@ describe("buildTitleSearchFilter", () => {
 describe("listMovies", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAggregateToArray.mockReset();
     vi.mocked(getDb).mockResolvedValue({
       collection: mockCollection,
     } as never);
@@ -115,6 +166,7 @@ describe("listMovies", () => {
 describe("searchMoviesByTitle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAggregateToArray.mockReset();
     vi.mocked(getDb).mockResolvedValue({
       collection: mockCollection,
     } as never);
@@ -131,25 +183,50 @@ describe("searchMoviesByTitle", () => {
   });
 
   it("searches by title with poster filter and selected sort", async () => {
-    mockCountDocuments.mockResolvedValue(10);
-    mockToArray.mockResolvedValue([
-      {
-        _id: { toString: () => "def456" },
-        title: "The Matrix",
-        year: 1999,
-        imdb: { rating: 8.7 },
-      },
-    ]);
+    mockAggregateToArray
+      .mockResolvedValueOnce([{ total: 10 }])
+      .mockResolvedValueOnce([
+        {
+          _id: { toString: () => "def456" },
+          title: "The Matrix",
+          year: 1999,
+          imdb: { rating: 8.7 },
+        },
+      ]);
 
     const result = await searchMoviesByTitle("matrix", { sort: "title-desc" });
 
-    expect(mockFind).toHaveBeenCalledWith({
-      poster: { $exists: true, $ne: "" },
-      title: { $regex: "matrix", $options: "i" },
-    });
-    expect(mockProject).toHaveBeenCalledWith(MOVIE_PROJECTION);
-    expect(mockSort).toHaveBeenCalledWith({ title: -1 });
+    const searchStage = buildTitleSearchStage("matrix");
+    expect(mockAggregate).toHaveBeenNthCalledWith(1, [
+      searchStage,
+      { $match: POSTER_FILTER },
+      { $count: "total" },
+    ]);
+    expect(mockAggregate).toHaveBeenNthCalledWith(2, [
+      searchStage,
+      { $match: POSTER_FILTER },
+      { $sort: { title: -1 } },
+      { $skip: 0 },
+      { $limit: 24 },
+      { $project: MOVIE_PROJECTION },
+    ]);
     expect(result.movies[0]?.title).toBe("The Matrix");
     expect(result.total).toBe(10);
+  });
+
+  it("clamps Atlas Search pagination before fetching documents", async () => {
+    mockAggregateToArray.mockResolvedValueOnce([{ total: 30 }]).mockResolvedValueOnce([]);
+
+    const result = await searchMoviesByTitle("matrix", { page: 5, pageSize: 24 });
+
+    expect(mockAggregate).toHaveBeenNthCalledWith(2, [
+      buildTitleSearchStage("matrix"),
+      { $match: POSTER_FILTER },
+      { $sort: { year: -1 } },
+      { $skip: 24 },
+      { $limit: 24 },
+      { $project: MOVIE_PROJECTION },
+    ]);
+    expect(result.page).toBe(2);
   });
 });

@@ -18,9 +18,26 @@ export async function register() {
     );
   }
 
-  if (result.created.length === 0 && result.dropped.length === 0) {
+  if (result.searchCreated.length > 0) {
     console.info(
-      `[db] Movie indexes already up to date on ${result.collection} (${result.expected.join(", ")})`,
+      `[db] Created Atlas Search indexes on ${result.collection}: ${result.searchCreated.join(", ")}`,
+    );
+  }
+
+  if (result.searchSkipped) {
+    console.warn(
+      `[db] Skipped Atlas Search index sync on ${result.collection}: ${result.searchSkipped}`,
+    );
+  }
+
+  if (
+    result.created.length === 0 &&
+    result.dropped.length === 0 &&
+    result.searchCreated.length === 0 &&
+    !result.searchSkipped
+  ) {
+    console.info(
+      `[db] Movie indexes already up to date on ${result.collection} (${[...result.expected, ...result.searchExpected].join(", ")})`,
     );
   }
 }

@@ -52,13 +52,14 @@ npm run db:sync-indexes  # Ensure movie indexes exist (idempotent)
 ## Features
 
 - Browse the latest movies with large poster images
-- Search movies by title (case-insensitive)
+- Search movies by title with Atlas Search fuzzy matching for typos and
+  separator-insensitive terms like `starwars`
 - Server-rendered App Router page backed by MongoDB
 - Vitest unit tests for helpers and UI components
 
 ## Database indexes
 
-Index definitions live in `src/lib/db-indexes.ts` and are applied automatically when the server starts via `src/instrumentation.ts`. The sync is **idempotent**: it creates missing indexes and drops extras not in the manifest (`_id_` is preserved), so every environment ends up with the same set; reruns are safe.
+Index definitions live in `src/lib/db-indexes.ts` and are applied automatically when the server starts via `src/instrumentation.ts`. The sync is **idempotent**: it creates missing regular MongoDB indexes, drops regular extras not in the manifest (`_id_` is preserved), and creates the named Atlas Search title index when Atlas supports search-index commands. Reruns are safe.
 
 You can also sync manually:
 
@@ -66,8 +67,10 @@ You can also sync manually:
 npm run db:sync-indexes
 ```
 
-Use the manual script after changing index definitions, or when you want indexes in place without starting the app. Dev, production, and cloud agent environments all share the same manifest — only `MONGODB_URI` differs.
+Use the manual script after changing index definitions, or when you want indexes in place without starting the app. Atlas Search indexes can take a short time to finish building after creation. Dev, production, and cloud agent environments all share the same manifest — only `MONGODB_URI` differs.
 
 ## Notes
 
-- Title search uses a regex filter and is capped to 24 results for responsiveness. Regex search is not covered by the compound indexes; Atlas Search would be needed for large-scale text search.
+- Title search uses the `movies_title_search` Atlas Search index and is capped
+  to 24 results for responsiveness. A non-Atlas local MongoDB can still browse
+  movies, but search requires Atlas Search support.
