@@ -152,4 +152,17 @@ describe("searchMoviesByTitle", () => {
     expect(result.movies[0]?.title).toBe("The Matrix");
     expect(result.total).toBe(10);
   });
+
+  it("searches by title with IMDb rating sort", async () => {
+    mockCountDocuments.mockResolvedValue(10);
+    mockToArray.mockResolvedValue([]);
+
+    await searchMoviesByTitle("matrix", { sort: "imdb-rating-desc" });
+
+    expect(mockFind).toHaveBeenCalledWith({
+      poster: { $exists: true, $ne: "" },
+      title: { $regex: "matrix", $options: "i" },
+    });
+    expect(mockSort).toHaveBeenCalledWith({ "imdb.rating": -1 });
+  });
 });

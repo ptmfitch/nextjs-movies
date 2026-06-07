@@ -53,6 +53,7 @@ npm run db:sync-indexes  # Ensure movie indexes exist (idempotent)
 
 - Browse the latest movies with large poster images
 - Search movies by title (case-insensitive)
+- Sort movies by year, title, or IMDb score
 - Server-rendered App Router page backed by MongoDB
 - Vitest unit tests for helpers and UI components
 

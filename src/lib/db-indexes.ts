@@ -18,4 +18,8 @@ export const MOVIE_INDEXES: MovieIndexDefinition[] = [
     key: { poster: 1, title: 1 },
     options: { name: "movies_poster_title_asc" },
   },
+  {
+    key: { poster: 1, "imdb.rating": 1 },
+    options: { name: "movies_poster_imdb_rating_asc" },
+  },
 ];
