@@ -6,6 +6,8 @@ import {
   MOVIES_PAGE_SIZE,
   buildMovieSort,
   clampMoviePage,
+  isMovieImdbRatingSort,
+  type MovieSort,
   type MoviesQueryOptions,
   type MoviesQueryResult,
 } from "@/lib/movie-params";
@@ -20,6 +22,7 @@ export {
   buildMovieSort,
   buildMoviesRange,
   formatMoviesRangeText,
+  isMovieImdbRatingSort,
   parseMoviePage,
   parseMovieSort,
   type MovieSort,
@@ -42,6 +45,10 @@ export const MOVIE_PROJECTION = {
   "imdb.rating": 1,
 } as const;
 
+const IMDB_RATING_FILTER = {
+  "imdb.rating": { $type: "number" },
+} as const;
+
 export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -54,6 +61,10 @@ export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
   };
 }
 
+function normalizeImdbRating(rating: number | string | undefined): number {
+  return typeof rating === "number" && Number.isFinite(rating) ? rating : 0;
+}
+
 function serializeMovie(doc: MovieDocument): Movie {
   return {
     _id: doc._id.toString(),
@@ -63,7 +74,21 @@ function serializeMovie(doc: MovieDocument): Movie {
     genres: doc.genres ?? [],
     cast: doc.cast ?? [],
     poster: doc.poster ?? "",
-    imdb: { rating: doc.imdb?.rating ?? 0 },
+    imdb: { rating: normalizeImdbRating(doc.imdb?.rating) },
+  };
+}
+
+function buildQueryFilter(
+  filter: Filter<MovieDocument>,
+  sort: MovieSort,
+): Filter<MovieDocument> {
+  if (!isMovieImdbRatingSort(sort)) {
+    return filter;
+  }
+
+  return {
+    ...filter,
+    ...IMDB_RATING_FILTER,
   };
 }
 
@@ -82,12 +107,13 @@ async function queryMovies(
   const { pageSize, sort, requestedPage } = resolveQueryOptions(options);
   const db = await getDb();
   const collection = db.collection<MovieDocument>(getMongoCollectionName());
+  const queryFilter = buildQueryFilter(filter, sort);
 
-  const total = await collection.countDocuments(filter);
+  const total = await collection.countDocuments(queryFilter);
   const page = clampMoviePage(requestedPage, total, pageSize);
 
   const docs = (await collection
-    .find(filter)
+    .find(queryFilter)
     .project(MOVIE_PROJECTION)
     .sort(buildMovieSort(sort))
     .skip((page - 1) * pageSize)

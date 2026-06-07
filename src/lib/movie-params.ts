@@ -74,6 +74,10 @@ export function buildMovieSort(sort: MovieSort): MovieSortSpec {
   }
 }
 
+export function isMovieImdbRatingSort(sort: MovieSort): boolean {
+  return sort === "imdb-rating-desc" || sort === "imdb-rating-asc";
+}
+
 export function buildMoviesRange({
   page,
   pageSize,

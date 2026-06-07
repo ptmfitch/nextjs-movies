@@ -21,6 +21,11 @@ const mockCollection = vi.fn(() => ({
   countDocuments: mockCountDocuments,
 }));
 
+const IMDB_SORT_FILTER = {
+  ...POSTER_FILTER,
+  "imdb.rating": { $type: "number" },
+};
+
 vi.mock("@/lib/mongodb", () => ({
   getDb: vi.fn(),
 }));
@@ -58,7 +63,7 @@ describe("listMovies", () => {
     } as never);
   });
 
-  it("queries movies with poster filter, projection, sort, skip, and limit", async () => {
+  it("queries IMDb-sorted movies with poster and numeric rating filters", async () => {
     mockCountDocuments.mockResolvedValue(50);
     mockToArray.mockResolvedValue([
       {
@@ -80,8 +85,8 @@ describe("listMovies", () => {
     });
 
     expect(mockCollection).toHaveBeenCalledWith("movies");
-    expect(mockCountDocuments).toHaveBeenCalledWith(POSTER_FILTER);
-    expect(mockFind).toHaveBeenCalledWith(POSTER_FILTER);
+    expect(mockCountDocuments).toHaveBeenCalledWith(IMDB_SORT_FILTER);
+    expect(mockFind).toHaveBeenCalledWith(IMDB_SORT_FILTER);
     expect(mockProject).toHaveBeenCalledWith(MOVIE_PROJECTION);
     expect(mockSort).toHaveBeenCalledWith({ "imdb.rating": -1 });
     expect(mockSkip).toHaveBeenCalledWith(12);

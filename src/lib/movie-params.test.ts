@@ -5,6 +5,7 @@ import {
   buildMoviesRange,
   clampMoviePage,
   formatMoviesRangeText,
+  isMovieImdbRatingSort,
   parseMoviePage,
   parseMovieSort,
 } from "@/lib/movie-params";
@@ -43,6 +44,14 @@ describe("buildMovieSort", () => {
     expect(buildMovieSort("title-desc")).toEqual({ title: -1 });
     expect(buildMovieSort("imdb-rating-desc")).toEqual({ "imdb.rating": -1 });
     expect(buildMovieSort("imdb-rating-asc")).toEqual({ "imdb.rating": 1 });
+  });
+});
+
+describe("isMovieImdbRatingSort", () => {
+  it("detects IMDb rating sort options", () => {
+    expect(isMovieImdbRatingSort("imdb-rating-desc")).toBe(true);
+    expect(isMovieImdbRatingSort("imdb-rating-asc")).toBe(true);
+    expect(isMovieImdbRatingSort("year-desc")).toBe(false);
   });
 });
 
