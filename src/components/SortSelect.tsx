@@ -11,6 +11,8 @@ const SORT_OPTIONS: { value: MovieSort; label: string }[] = [
   { value: "year-asc", label: "Year (oldest)" },
   { value: "title-asc", label: "Title (A–Z)" },
   { value: "title-desc", label: "Title (Z–A)" },
+  { value: "imdb-rating-desc", label: "IMDb score (highest)" },
+  { value: "imdb-rating-asc", label: "IMDb score (lowest)" },
 ];
 
 export function SortSelect() {

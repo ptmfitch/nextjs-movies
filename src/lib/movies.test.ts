@@ -73,13 +73,17 @@ describe("listMovies", () => {
       },
     ]);
 
-    const result = await listMovies({ page: 2, pageSize: 12, sort: "title-asc" });
+    const result = await listMovies({
+      page: 2,
+      pageSize: 12,
+      sort: "imdb-rating-desc",
+    });
 
     expect(mockCollection).toHaveBeenCalledWith("movies");
     expect(mockCountDocuments).toHaveBeenCalledWith(POSTER_FILTER);
     expect(mockFind).toHaveBeenCalledWith(POSTER_FILTER);
     expect(mockProject).toHaveBeenCalledWith(MOVIE_PROJECTION);
-    expect(mockSort).toHaveBeenCalledWith({ title: 1 });
+    expect(mockSort).toHaveBeenCalledWith({ "imdb.rating": -1 });
     expect(mockSkip).toHaveBeenCalledWith(12);
     expect(mockLimit).toHaveBeenCalledWith(12);
     expect(result).toEqual({

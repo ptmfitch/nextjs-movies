@@ -27,15 +27,18 @@ describe("SortSelect", () => {
     expect(screen.getByRole("combobox", { name: "Sort by" })).toHaveValue(
       "year-desc",
     );
+    expect(
+      screen.getByRole("option", { name: "IMDb score (highest)" }),
+    ).toHaveValue("imdb-rating-desc");
   });
 
   it("changes sort and resets page to 1", () => {
     render(<SortSelect />);
 
     fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
-      target: { value: "title-asc" },
+      target: { value: "imdb-rating-desc" },
     });
 
-    expect(push).toHaveBeenCalledWith("/?q=matrix&sort=title-asc");
+    expect(push).toHaveBeenCalledWith("/?q=matrix&sort=imdb-rating-desc");
   });
 });

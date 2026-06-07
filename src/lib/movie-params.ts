@@ -1,4 +1,10 @@
-export type MovieSort = "year-desc" | "year-asc" | "title-asc" | "title-desc";
+export type MovieSort =
+  | "year-desc"
+  | "year-asc"
+  | "title-asc"
+  | "title-desc"
+  | "imdb-rating-desc"
+  | "imdb-rating-asc";
 
 type MovieSortSpec = Record<string, 1 | -1>;
 
@@ -10,6 +16,8 @@ const MOVIE_SORT_VALUES: readonly MovieSort[] = [
   "year-asc",
   "title-asc",
   "title-desc",
+  "imdb-rating-desc",
+  "imdb-rating-asc",
 ];
 
 export interface MoviesQueryOptions {
@@ -56,6 +64,10 @@ export function buildMovieSort(sort: MovieSort): MovieSortSpec {
       return { title: 1 };
     case "title-desc":
       return { title: -1 };
+    case "imdb-rating-desc":
+      return { "imdb.rating": -1 };
+    case "imdb-rating-asc":
+      return { "imdb.rating": 1 };
     case "year-desc":
     default:
       return { year: -1 };
