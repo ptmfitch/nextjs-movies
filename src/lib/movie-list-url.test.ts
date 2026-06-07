@@ -13,9 +13,9 @@ describe("buildMovieListUrl", () => {
       buildMovieListUrl({
         q: "matrix",
         page: 2,
-        sort: "title-asc",
+        sort: "imdb-rating-desc",
       }),
-    ).toBe("/?q=matrix&page=2&sort=title-asc");
+    ).toBe("/?q=matrix&page=2&sort=imdb-rating-desc");
   });
 
   it("trims the search query", () => {
@@ -25,12 +25,14 @@ describe("buildMovieListUrl", () => {
 
 describe("readMovieListParams", () => {
   it("reads and normalizes URL search params", () => {
-    const params = new URLSearchParams("q=matrix&page=3&sort=title-desc");
+    const params = new URLSearchParams(
+      "q=matrix&page=3&sort=imdb-rating-asc",
+    );
 
     expect(readMovieListParams(params)).toEqual({
       q: "matrix",
       page: 3,
-      sort: "title-desc",
+      sort: "imdb-rating-asc",
     });
   });
 

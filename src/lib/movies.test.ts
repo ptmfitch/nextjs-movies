@@ -15,9 +15,11 @@ const mockSkip = vi.fn(() => ({ limit: mockLimit }));
 const mockSort = vi.fn(() => ({ skip: mockSkip }));
 const mockProject = vi.fn(() => ({ sort: mockSort }));
 const mockFind = vi.fn(() => ({ project: mockProject }));
+const mockAggregate = vi.fn(() => ({ toArray: mockToArray }));
 const mockCountDocuments = vi.fn();
 const mockCollection = vi.fn(() => ({
   find: mockFind,
+  aggregate: mockAggregate,
   countDocuments: mockCountDocuments,
 }));
 
@@ -110,6 +112,78 @@ describe("listMovies", () => {
     expect(mockSkip).toHaveBeenCalledWith(24);
     expect(result.page).toBe(2);
   });
+
+  it("sorts IMDb ratings with numeric values before invalid ratings", async () => {
+    mockCountDocuments.mockResolvedValue(2);
+    mockToArray.mockResolvedValue([
+      {
+        _id: { toString: () => "band-of-brothers" },
+        title: "Band of Brothers",
+        year: 2001,
+        imdb: { rating: 9.6 },
+      },
+      {
+        _id: { toString: () => "zero-rating" },
+        title: "Zero Rating",
+        year: 2015,
+        imdb: { rating: 0 },
+      },
+      {
+        _id: { toString: () => "unrated" },
+        title: "Unrated",
+        year: 2015,
+        imdb: { rating: "" },
+      },
+    ]);
+
+    const result = await listMovies({ sort: "imdb-rating-desc" });
+
+    expect(mockFind).not.toHaveBeenCalled();
+    expect(mockAggregate).toHaveBeenCalledWith([
+      { $match: POSTER_FILTER },
+      { $project: MOVIE_PROJECTION },
+      {
+        $addFields: {
+          __imdbRatingSort: {
+            $convert: {
+              input: "$imdb.rating",
+              to: "double",
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          __imdbRatingMissing: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ["$__imdbRatingSort", null] },
+                  { $lte: ["$__imdbRatingSort", 0] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+      {
+        $sort: {
+          __imdbRatingMissing: 1,
+          __imdbRatingSort: -1,
+          title: 1,
+        },
+      },
+      { $skip: 0 },
+      { $limit: 24 },
+    ]);
+    expect(result.movies.map((movie) => movie.imdb.rating)).toEqual([
+      9.6, 0, 0,
+    ]);
+  });
 });
 
 describe("searchMoviesByTitle", () => {
@@ -151,5 +225,30 @@ describe("searchMoviesByTitle", () => {
     expect(mockSort).toHaveBeenCalledWith({ title: -1 });
     expect(result.movies[0]?.title).toBe("The Matrix");
     expect(result.total).toBe(10);
+  });
+
+  it("searches by title with IMDb rating sort", async () => {
+    mockCountDocuments.mockResolvedValue(10);
+    mockToArray.mockResolvedValue([]);
+
+    await searchMoviesByTitle("matrix", { sort: "imdb-rating-desc" });
+
+    expect(mockAggregate).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        {
+          $match: {
+            poster: { $exists: true, $ne: "" },
+            title: { $regex: "matrix", $options: "i" },
+          },
+        },
+        {
+          $sort: {
+            __imdbRatingMissing: 1,
+            __imdbRatingSort: -1,
+            title: 1,
+          },
+        },
+      ]),
+    );
   });
 });

@@ -53,7 +53,7 @@ describe("syncMovieIndexes", () => {
     expect(mockDropIndex).not.toHaveBeenCalledWith("_id_");
     expect(result).toEqual({
       collection: "movies",
-      created: ["movies_poster_title_asc"],
+      created: ["movies_poster_title_asc", "movies_poster_imdb_rating_asc"],
       dropped: ["movies_poster_year_desc"],
       expected: MOVIE_INDEXES.map((index) => index.options.name),
     });

@@ -21,5 +21,5 @@ export interface MovieDocument {
   genres?: string[];
   cast?: string[];
   poster?: string;
-  imdb?: { rating?: number };
+  imdb?: { rating?: number | string };
 }

@@ -9,6 +9,8 @@ import type { MovieSort } from "@/lib/movie-params";
 const SORT_OPTIONS: { value: MovieSort; label: string }[] = [
   { value: "year-desc", label: "Year (newest)" },
   { value: "year-asc", label: "Year (oldest)" },
+  { value: "imdb-rating-desc", label: "IMDb score (highest)" },
+  { value: "imdb-rating-asc", label: "IMDb score (lowest)" },
   { value: "title-asc", label: "Title (A–Z)" },
   { value: "title-desc", label: "Title (Z–A)" },
 ];

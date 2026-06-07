@@ -1,4 +1,4 @@
-import type { Filter } from "mongodb";
+import type { Document, Filter } from "mongodb";
 
 import { getMongoCollectionName } from "@/lib/env";
 import {
@@ -54,6 +54,11 @@ export function buildTitleSearchFilter(query: string): Filter<MovieDocument> {
   };
 }
 
+function normalizeImdbRating(value: number | string | undefined): number {
+  const rating = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(rating) && rating > 0 ? rating : 0;
+}
+
 function serializeMovie(doc: MovieDocument): Movie {
   return {
     _id: doc._id.toString(),
@@ -63,7 +68,7 @@ function serializeMovie(doc: MovieDocument): Movie {
     genres: doc.genres ?? [],
     cast: doc.cast ?? [],
     poster: doc.poster ?? "",
-    imdb: { rating: doc.imdb?.rating ?? 0 },
+    imdb: { rating: normalizeImdbRating(doc.imdb?.rating) },
   };
 }
 
@@ -73,6 +78,66 @@ function resolveQueryOptions(options: MoviesQueryOptions = {}) {
   const requestedPage = options.page ?? 1;
 
   return { pageSize, sort, requestedPage };
+}
+
+function isImdbRatingSort(sort: string): sort is "imdb-rating-desc" | "imdb-rating-asc" {
+  return sort === "imdb-rating-desc" || sort === "imdb-rating-asc";
+}
+
+function buildImdbRatingSortPipeline({
+  filter,
+  sort,
+  page,
+  pageSize,
+}: {
+  filter: Filter<MovieDocument>;
+  sort: "imdb-rating-desc" | "imdb-rating-asc";
+  page: number;
+  pageSize: number;
+}): Document[] {
+  const direction = sort === "imdb-rating-desc" ? -1 : 1;
+
+  return [
+    { $match: filter },
+    { $project: MOVIE_PROJECTION },
+    {
+      $addFields: {
+        __imdbRatingSort: {
+          $convert: {
+            input: "$imdb.rating",
+            to: "double",
+            onError: null,
+            onNull: null,
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        __imdbRatingMissing: {
+          $cond: [
+            {
+              $or: [
+                { $eq: ["$__imdbRatingSort", null] },
+                { $lte: ["$__imdbRatingSort", 0] },
+              ],
+            },
+            1,
+            0,
+          ],
+        },
+      },
+    },
+    {
+      $sort: {
+        __imdbRatingMissing: 1,
+        __imdbRatingSort: direction,
+        title: 1,
+      },
+    },
+    { $skip: (page - 1) * pageSize },
+    { $limit: pageSize },
+  ];
 }
 
 async function queryMovies(
@@ -85,14 +150,21 @@ async function queryMovies(
 
   const total = await collection.countDocuments(filter);
   const page = clampMoviePage(requestedPage, total, pageSize);
+  const mongoSort = buildMovieSort(sort);
 
-  const docs = (await collection
-    .find(filter)
-    .project(MOVIE_PROJECTION)
-    .sort(buildMovieSort(sort))
-    .skip((page - 1) * pageSize)
-    .limit(pageSize)
-    .toArray()) as MovieDocument[];
+  const docs = isImdbRatingSort(sort)
+    ? ((await collection
+        .aggregate<MovieDocument>(
+          buildImdbRatingSortPipeline({ filter, sort, page, pageSize }),
+        )
+        .toArray()) as MovieDocument[])
+    : ((await collection
+        .find(filter)
+        .project(MOVIE_PROJECTION)
+        .sort(mongoSort)
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .toArray()) as MovieDocument[]);
 
   return {
     movies: docs.map(serializeMovie),

@@ -13,6 +13,7 @@ describe("parseMovieSort", () => {
   it("returns the sort value when valid", () => {
     expect(parseMovieSort("title-asc")).toBe("title-asc");
     expect(parseMovieSort("year-asc")).toBe("year-asc");
+    expect(parseMovieSort("imdb-rating-desc")).toBe("imdb-rating-desc");
   });
 
   it("falls back to year-desc for invalid values", () => {
@@ -40,6 +41,8 @@ describe("buildMovieSort", () => {
     expect(buildMovieSort("year-asc")).toEqual({ year: 1 });
     expect(buildMovieSort("title-asc")).toEqual({ title: 1 });
     expect(buildMovieSort("title-desc")).toEqual({ title: -1 });
+    expect(buildMovieSort("imdb-rating-desc")).toEqual({ "imdb.rating": -1 });
+    expect(buildMovieSort("imdb-rating-asc")).toEqual({ "imdb.rating": 1 });
   });
 });
 
