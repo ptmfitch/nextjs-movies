@@ -6,6 +6,12 @@
         "command": "python3 .cursor/hooks/block-destructive-shell.py",
         "failClosed": true
       }
+    ],
+    "postToolUse": [
+      {
+        "command": "python3 .cursor/hooks/check-types.py",
+        "matcher": "Write|StrReplace"
+      }
     ]
   }
 }
